@@ -1,12 +1,14 @@
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef } from 'react';
 import { Button, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
+import { geminiTest } from './gemini_util';
 
 export default function App() {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [uri, setUri] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
+  const [testText, settestText] = useState<string | null>(null);
 
   if (!permission) {
     // Camera permissions are still loading.
@@ -34,6 +36,11 @@ export default function App() {
     }
   };
 
+  const testGemini = async () => {
+    console.log("Testing Gemini");
+    settestText(await geminiTest());
+  }  
+
   if (uri != null){
     return (
     <View>
@@ -43,6 +50,7 @@ export default function App() {
         style={{ width: "20%", aspectRatio: 1 }}
         />
         <Button onPress={() => setUri(null)} title={"Take Another Picture"} />
+        <Button onPress={testGemini} title={testText!=null ? testText: "Invalid Output"} />
     </View>
     );
   }
