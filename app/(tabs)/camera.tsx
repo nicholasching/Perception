@@ -39,6 +39,7 @@ export default function App() {
   const testGemini = async () => {
     console.log("Testing Gemini");
     settestText(await geminiTest());
+    console.log("Response Recieved");
   }  
 
   if (uri != null){
