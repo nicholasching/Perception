@@ -2,6 +2,7 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef } from 'react';
 import { Button, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import { geminiTest } from './gemini_util';
+import { uriToBase64 } from './gemini_util';
 
 export default function App() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -40,9 +41,18 @@ export default function App() {
     console.log("Testing Gemini");
     settestText(await geminiTest());
     console.log("Response Recieved");
-  }  
+    testURItoBase64();
+  }
+  
+  const testURItoBase64 = async () => {
+    console.log("Testing URI to Base64");
+    if (uri){
+      console.log(await uriToBase64(uri));
+    }
+    console.log("Response Recieved");
+  }
 
-  if (uri != null){
+  if (uri){
     return (
     <View>
         <Image
