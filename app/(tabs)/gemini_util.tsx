@@ -1,19 +1,9 @@
+// Importing modules and configuring Gemini API
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const gemini = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_API_KEY);
 const model = gemini.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
-export async function geminiTest(): Promise<string> {
-    let promise = new Promise<string>(async function(resolve) {
-        const prompt = "Choose a random number between 1 and 1000";
-
-        const result = await model.generateContent(prompt);
-
-        resolve(result.response.text());
-    })
-    
-    return promise;
-}
-
+// Function: Converts an image (pointed to via URI) to Base64 String
 export async function uriToBase64(uri: string): Promise<object> {
     try {
         const response = await fetch(uri);
@@ -40,6 +30,7 @@ export async function uriToBase64(uri: string): Promise<object> {
     }
 }
 
+// Function: Recieves an text description of the image
 export async function imgToText(imgBase64: object): Promise<string> {
     let promise = new Promise<string>(async function(resolve) {
         const prompt = "You are a computer vision model; your task is a act as a guide for the visually imparied. Your output is going to be turned into speech, please provide a concise, one sentence description of the image that addresses Kimberly by telling her what is in front of her.";
