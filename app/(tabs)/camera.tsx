@@ -1,8 +1,7 @@
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef } from 'react';
 import { Button, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
-import { geminiTest } from './gemini_util';
-import { uriToBase64 } from './gemini_util';
+import { geminiTest, uriToBase64, imgToText } from './gemini_util';
 
 export default function App() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -41,15 +40,22 @@ export default function App() {
     console.log("Testing Gemini");
     settestText(await geminiTest());
     console.log("Response Recieved");
-    testURItoBase64();
+    
+    if (uri) {
+      settestText(await imgToText(await uriToBase64(uri)));
+    }
+    console.log("Gemini Vision to Text Recieved");
   }
   
   const testURItoBase64 = async () => {
+    var temp;
     console.log("Testing URI to Base64");
     if (uri){
-      console.log(await uriToBase64(uri));
+      temp = await uriToBase64(uri)
+      console.log(temp);
     }
-    console.log("Response Recieved");
+    console.log("Base64 Recieved");
+    return temp;
   }
 
   if (uri){
@@ -58,7 +64,7 @@ export default function App() {
         <Image
         source={{ uri }}
         resizeMode="contain"
-        style={{ width: "20%", aspectRatio: 1 }}
+        style={{ width: "100%", aspectRatio: 1 }}
         />
         <Button onPress={() => setUri(null)} title={"Take Another Picture"} />
         <Button onPress={testGemini} title={testText!=null ? testText: "Invalid Output"} />
