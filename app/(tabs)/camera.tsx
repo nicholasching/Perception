@@ -2,6 +2,7 @@
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef } from 'react';
 import { Button, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
+import * as Speech from "expo-speech";
 import { uriToBase64, imgToText } from './gemini_util';
 
 // Main View
@@ -11,6 +12,9 @@ export default function App() {
   const [uri, setUri] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const [testText, settestText] = useState<string | null>(null);
+  const speak = () => {
+    Speech.speak(testText!=null ? testText: "Empty Argument", {voice: "en-GB-Female"});
+  };
 
   if (!permission) {
     // Camera permissions are still loading.
@@ -46,6 +50,12 @@ export default function App() {
   }
 
   if (uri){
+    if(testText){
+      speak();
+    }
+    else{
+      descImage();
+    }
     return (
     <View>
         <Image
@@ -53,8 +63,7 @@ export default function App() {
         resizeMode="contain"
         style={{ width: "100%", aspectRatio: 1 }}
         />
-        <Button onPress={() => setUri(null)} title={"Take Another Picture"} />
-        <Button onPress={descImage} title={testText!=null ? testText: "Invalid Output"} />
+        <Button onPress={() => { setUri(null); settestText(null); }} title={"Take Another Picture"} />
     </View>
     );
   }
