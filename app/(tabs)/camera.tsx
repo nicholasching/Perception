@@ -5,6 +5,7 @@ import { Button, StyleSheet, Text, TouchableOpacity, View, Image, StatusBar } fr
 import * as Speech from "expo-speech";
 import { uriToBase64, imgToText } from './gemini_util';
 import { DeviceMotion } from 'expo-sensors';
+import * as Haptics from 'expo-haptics';
 
 // Main View
 export default function App() {
@@ -48,6 +49,9 @@ export default function App() {
 
   // Updates ref when rotation changes
   useEffect(() => {
+    if ((rotationRef.current.beta * (180/Math.PI)) < uprightAngle && (rotation.beta * (180/Math.PI)) > uprightAngle || (rotationRef.current.beta * (180/Math.PI)) > uprightAngle && (rotation.beta * (180/Math.PI)) < uprightAngle){
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
+    }
     rotationRef.current = rotation;
   }, [rotation]);
 
@@ -121,27 +125,10 @@ export default function App() {
     await generateDescription();
   }
 
-  /*
-  if (uri){
-    return (
-    <View>
-        <Image
-        source={{ uri }}
-        resizeMode="contain"
-        style={{ width: "100%", aspectRatio: 1 }}
-        />
-        <Text>x: {(rotation.beta * (180/Math.PI)).toFixed(2)}°</Text>
-        <Text>y: {(rotation.gamma * (180/Math.PI)).toFixed(2)}°</Text>
-        <Text>z: {(rotation.alpha * (180/Math.PI)).toFixed(2)}°</Text>
-        <Button onPress={resetPhoto} title={"Take Another Picture"} />
-    </View>
-    );
-  }
-  */
-
+  // Recording view: Displayed when phone is upright
   if ((rotationRef.current.beta * (180/Math.PI)) > uprightAngle){
     return (
-      <View style={styles.recording}>
+      <View style={styles.background}>
         <CameraView 
           ref={cameraRef}
           style={styles.camera} 
@@ -154,29 +141,19 @@ export default function App() {
     );
   }
 
-
+  // Inactive View: Displayed when phone is not upright
   return (
-    <View style={styles.container}>
-      <CameraView 
-        ref={cameraRef}
-        style={styles.camera} 
-        facing={facing}
-      >
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-            <Text style={styles.text}>Flip Camera</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={takePicture}>
-            <Text style={styles.text}>Take Photo</Text>
-          </TouchableOpacity>
-        </View>
-      </CameraView>
+    <View style={styles.background}>
+      <Text style={styles.inactivetext}>The camera is currently inactive.</Text>
+      <Text style={styles.inactivetext}>Tilt your phone above an angle of {uprightAngle}° to activate the camera.</Text>
+      <Text style={styles.inactivetext}>Current Angle: {(rotationRef.current.beta * (180/Math.PI)).toFixed(1)}°</Text>
+      <StatusBar backgroundColor = "#00FF00" barStyle="light-content"/>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  recording:{
+  background:{
     flex: 1,
     justifyContent: 'center',
     backgroundColor: '#232020',
@@ -187,9 +164,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FF0000',
     padding: 10,
-    top: 0,
   },
-  
+  inactivetext:{
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#00FF00',
+    padding: 10,
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
@@ -218,3 +200,22 @@ const styles = StyleSheet.create({
     color: 'white',
   },
 });
+
+// Deprecated code: View to test image and orientation data
+  /*
+  if (uri){
+    return (
+    <View>
+        <Image
+        source={{ uri }}
+        resizeMode="contain"
+        style={{ width: "100%", aspectRatio: 1 }}
+        />
+        <Text>x: {(rotation.beta * (180/Math.PI)).toFixed(2)}°</Text>
+        <Text>y: {(rotation.gamma * (180/Math.PI)).toFixed(2)}°</Text>
+        <Text>z: {(rotation.alpha * (180/Math.PI)).toFixed(2)}°</Text>
+        <Button onPress={resetPhoto} title={"Take Another Picture"} />
+    </View>
+    );
+  }
+  */
