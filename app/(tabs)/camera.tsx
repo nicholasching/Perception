@@ -22,7 +22,8 @@ export default function App() {
   };
 
   // Configuration Constants
-  const uprightAngle = 50;              //
+  const uprightAngle = 50;
+  const modeCount = 2;
 
   // Initializes ActionListener to record rotation data
   useEffect(()=>{
@@ -57,29 +58,31 @@ export default function App() {
 
   // Regularly takes a photo
   useEffect(() => {
-    const interval = setInterval(() => {
+    console.log("Initiating interval.")
+    const interval = setInterval(async () => {
       // Access the current rotation value from the ref
       console.log("x: " + (rotationRef.current.beta * (180/Math.PI)).toFixed(2) + "°");
 
       if ((rotationRef.current.beta * (180/Math.PI)) > uprightAngle){
         resetPhoto();
-        retrieveDescription();
+        try{
+          await retrieveDescription();
+        }
+        catch (error){
+          console.error('Error retrieving description:', error);
+        }
       }
     }, 10000);
 
     return () => clearInterval(interval);
   }, []); // Empty dependency array ensures interval is only set up once
 
+
   useEffect(() => {
-    if (uri){
-      if(testText){
-        speak();
-      }
-      else{
-        generateDescription();
-      }
+    if (testText){
+      speak();
     }
-  },[uri, testText]);
+  },[testText]);
 
   if (!permission) {
     // Camera permissions are still loading.
@@ -98,6 +101,17 @@ export default function App() {
 
   function toggleCameraFacing() {
     setFacing(current => (current === 'back' ? 'front' : 'back'));
+  }
+
+  function toggleMode(){
+    console.log("Changing Mode.")
+    if(mode.valueOf() < (modeCount - 1)){
+      setMode(mode.valueOf() + 1);
+    }
+    else{
+      setMode(0);
+    }
+    console.log("Mode Selected: "+ mode.valueOf())
   }
 
   function resetPhoto(){
@@ -121,8 +135,13 @@ export default function App() {
   }
 
   async function retrieveDescription(){
-    await takePicture();
-    await generateDescription();
+    try{
+      await takePicture();
+      await generateDescription();
+    }
+    catch(error){
+      console.error('Error retrieving description:', error);
+    }
   }
 
   // Recording view: Displayed when phone is upright
@@ -147,6 +166,7 @@ export default function App() {
       <Text style={styles.inactivetext}>The camera is currently inactive.</Text>
       <Text style={styles.inactivetext}>Tilt your phone above an angle of {uprightAngle}° to activate the camera.</Text>
       <Text style={styles.inactivetext}>Current Angle: {(rotationRef.current.beta * (180/Math.PI)).toFixed(1)}°</Text>
+      <Button color = {"#00FF00"} onPress={toggleMode} title={"Toggle Mode"} />
       <StatusBar backgroundColor = "#00FF00" barStyle="light-content"/>
     </View>
   );
