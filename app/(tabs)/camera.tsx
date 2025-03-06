@@ -1,7 +1,7 @@
 // Importing necessary modules
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef, useEffect } from 'react';
-import { Button, StyleSheet, Text, TouchableOpacity, View, Image, StatusBar } from 'react-native';
+import { Button, StyleSheet, Text, View, StatusBar } from 'react-native';
 import * as Speech from "expo-speech";
 import { uriToBase64, imgToText } from './gemini_util';
 import { DeviceMotion } from 'expo-sensors';
@@ -9,25 +9,30 @@ import * as Haptics from 'expo-haptics';
 
 // Main View
 export default function App() {
+  // Camera remounting mechanism
+  const [cameraKey, setCameraKey] = useState(0);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+
+  // State variables (saves variable data between renders)
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [uri, setUri] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
-  const [testText, settestText] = useState<string | null>(null);
-  // FUTURE FEATURE: Implement mode switching
+  const [genText, setGenText] = useState<string | null>(null);
   const [mode, setMode] = useState<Number>(0);
   const [rotation, setRotation] = useState({alpha: 0, beta: 0, gamma: 0,});
-  const speak = () => {
-    Speech.speak(testText!=null ? testText: "Error: There is nothing to say.", {voice: "en-GB-Female"});
-  };
 
-  // Configuration Constants
+  // Reference hook variables for function use (workaround for useState closure)
+  const rotationRef = useRef(rotation);
+  const modeRef = useRef(mode);
+
+  // Configuration constants
   const uprightAngle = 50;
   const modeCount = 2;
 
-  // Initializes ActionListener to record rotation data
+  // Hook: Initializes action listener to record rotation data - used to ensure the listener is not re-setup across renders (no dependencies)
   useEffect(()=>{
-    DeviceMotion.setUpdateInterval(50);
+    DeviceMotion.setUpdateInterval(1000/60);
     DeviceMotion.addListener(deviceMotionData => {
       const { rotation } = deviceMotionData;
       if (rotation) {
@@ -39,57 +44,91 @@ export default function App() {
       }
     })
 
-    // Clean up subscription when component unmounts
+    // Helper: Removes listener, runs when the component unmounts
     return () => {
       DeviceMotion.removeAllListeners();
     };
   }, [])
 
-  // Creates ref to track current rotation value for use (workaround for useState closure)
-  const rotationRef = useRef(rotation);
-
-  // Updates ref when rotation changes
+  // Hook: Updates rotation reference value, triggered upon change of the rotation state variable
   useEffect(() => {
+    // Haptic feedback when phone crosses the threshold angle, reset camera state
     if ((rotationRef.current.beta * (180/Math.PI)) < uprightAngle && (rotation.beta * (180/Math.PI)) > uprightAngle || (rotationRef.current.beta * (180/Math.PI)) > uprightAngle && (rotation.beta * (180/Math.PI)) < uprightAngle){
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
+      resetCamera();
     }
     rotationRef.current = rotation;
   }, [rotation]);
 
-  // Regularly takes a photo
+  // Hook: Updates mode reference value, triggered upon change of the mode state variable
+  useEffect(() => {
+    console.log("Mode Selected: "+ mode.valueOf())
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
+    modeRef.current = mode;
+  }, [mode]);
+
+  // Hook: Speaks the generated text, triggered upon change of the generated text state variable
+  useEffect(() => {
+    if (genText){
+      speak();
+    }
+  },[genText]);
+
+  // Hook: Initalizes the interval that automatically takes a photo - used to ensure the listener is not re-setup across renders (only dependent on camera ready state)
   useEffect(() => {
     console.log("Initiating interval.")
+    let isProcessing = false;
+    
     const interval = setInterval(async () => {
       // Access the current rotation value from the ref
-      console.log("x: " + (rotationRef.current.beta * (180/Math.PI)).toFixed(2) + "°");
-
-      if ((rotationRef.current.beta * (180/Math.PI)) > uprightAngle){
+      const currentAngle = (rotationRef.current.beta * (180/Math.PI));
+      console.log("x: " + currentAngle.toFixed(2) + "°, Camera ready: " + isCameraReady);
+      
+      // Only proceed if camera is ready, phone is upright, and we're not already processing
+      if (currentAngle > uprightAngle && isCameraReady && !isProcessing && cameraRef.current) {
+        isProcessing = true;
         resetPhoto();
-        try{
-          await retrieveDescription();
-        }
-        catch (error){
-          console.error('Error retrieving description:', error);
+        
+        try {
+          console.log("Taking picture...");
+          const photoUri = await takePicture(); // Capture the returned URI
+          
+          if (photoUri) {
+            // Use the URI directly instead of depending on state update
+            console.log("URI captured, generating description...");
+            await generateDescription(photoUri); // Pass the URI explicitly
+          } else {
+            console.log("No URI after taking picture");
+          }
+        } catch (error) {
+          console.error('Error in photo cycle:', error);
+          resetCamera(); // Reset camera on error
+        } finally {
+          isProcessing = false;
         }
       }
     }, 10000);
 
-    return () => clearInterval(interval);
-  }, []); // Empty dependency array ensures interval is only set up once
+    // Helper: Terminates the interval, runs when the component unmounts
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isCameraReady]); // Depend on camera ready state
 
+  // Helper function: Camera re-mounting
+  const resetCamera = () => {
+    console.log("Resetting camera component");
+    setIsCameraReady(false);
+    setCameraKey(prevKey => prevKey + 1);
+  };
 
-  useEffect(() => {
-    if (testText){
-      speak();
-    }
-  },[testText]);
-
+  // Check for whether camera permissions are still loading
   if (!permission) {
-    // Camera permissions are still loading.
     return <View />;
   }
 
-  if (!permission.granted) {
+  // Check for whether camera permissions are granted
+  else if (!permission.granted) {
     // Camera permissions are not granted yet.
     return (
       <View style={styles.container}>
@@ -99,11 +138,13 @@ export default function App() {
     );
   }
 
-  function toggleCameraFacing() {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
-  }
+  // Function: Voice output
+  const speak = () => {
+    Speech.speak(genText!=null ? genText: "Error: There is nothing to say.", {voice: "en-GB-Female"});
+  };
 
-  function toggleMode(){
+  // Helper function: Mode toggle
+  function toggleMode(){  // Implement check to ensure function is not processing
     console.log("Changing Mode.")
     if(mode.valueOf() < (modeCount - 1)){
       setMode(mode.valueOf() + 1);
@@ -111,50 +152,75 @@ export default function App() {
     else{
       setMode(0);
     }
-    console.log("Mode Selected: "+ mode.valueOf())
   }
 
+  // Helper function: Reset photo storage to prepare for new photo
   function resetPhoto(){
     console.log("Photo storage has been reset.")
     setUri(null);
-    settestText(null);
+    setGenText(null);
   }
 
+  // Function: Takes a photo and returns the URI pointing to the location of the photo
   const takePicture = async () => {
-    const photo = await cameraRef.current?.takePictureAsync();
-    if (photo?.uri) {
-      setUri(photo.uri);
+    // Ensure the camera reference is available and properly loaded
+    if (!cameraRef.current) {
+      console.log("Camera ref not available");
+      throw new Error("Camera reference not available");
+    }
+    
+    // Attempt capturing a photo
+    try {
+      const photo = await cameraRef.current.takePictureAsync();
+      console.log("Photo taken:", photo ? "Success" : "Failed");
+      
+      if (photo?.uri) {
+        setUri(photo.uri);
+        return photo.uri;
+      } else {
+        console.log("No URI in photo object");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error taking picture:", error);
+      throw error;
     }
   };
 
-  const generateDescription = async () => {
-    if (uri) {
-      settestText(await imgToText(await uriToBase64(uri), mode));
+  // Function: Generates a description for the captured photo
+  const generateDescription = async (photoUri: string | null = null) => {
+    // The passed URI is used if available, otherwise the state URI is used
+    const imageUri = photoUri || uri;
+    
+    // Generates the description of the image if the URI is available
+    if (imageUri) {
+      const base64 = await uriToBase64(imageUri);
+      const text = await imgToText(base64, modeRef.current);
+      setGenText(text);
+      console.log("Gemini Vision to Text Received");
+    } else {
+      console.log("No URI available for description");
     }
-    console.log("Gemini Vision to Text Recieved");
-  }
-
-  async function retrieveDescription(){
-    try{
-      await takePicture();
-      await generateDescription();
-    }
-    catch(error){
-      console.error('Error retrieving description:', error);
-    }
-  }
+  };
 
   // Recording view: Displayed when phone is upright
   if ((rotationRef.current.beta * (180/Math.PI)) > uprightAngle){
     return (
       <View style={styles.background}>
         <CameraView 
+          key={cameraKey} // Key used to force camera remounting
           ref={cameraRef}
           style={styles.camera} 
           facing={facing}
+          onCameraReady={() => {
+            console.log("Camera is ready");
+            setIsCameraReady(true);
+          }}
         >
         </CameraView>
-        <Text style={styles.recordingtext}>Recording</Text>
+        <Text style={styles.recordingtext}>
+          {isCameraReady ? "Recording" : "Preparing camera..."}
+        </Text>
         <StatusBar backgroundColor = "#FF0000" barStyle="light-content"/>
       </View>
     );
@@ -172,6 +238,7 @@ export default function App() {
   );
 }
 
+// CSS Styling
 const styles = StyleSheet.create({
   background:{
     flex: 1,
@@ -237,5 +304,12 @@ const styles = StyleSheet.create({
         <Button onPress={resetPhoto} title={"Take Another Picture"} />
     </View>
     );
+  }
+  */
+
+// Deprecated code: Function to toggle camera direction
+  /*
+  function toggleCameraFacing() {
+    setFacing(current => (current === 'back' ? 'front' : 'back'));
   }
   */
