@@ -1,11 +1,12 @@
 // Importing necessary modules
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button, StyleSheet, Text, View, StatusBar } from 'react-native';
 import * as Speech from "expo-speech";
 import { uriToBase64, imgToText } from './gemini_util';
 import { DeviceMotion } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
+import { useFocusEffect } from 'expo-router';
 
 // Main View
 export default function App() {
@@ -30,25 +31,29 @@ export default function App() {
   const uprightAngle = 50;
   const modeCount = 2;
 
-  // Hook: Initializes action listener to record rotation data - used to ensure the listener is not re-setup across renders (no dependencies)
-  useEffect(()=>{
-    DeviceMotion.setUpdateInterval(1000/60);
-    DeviceMotion.addListener(deviceMotionData => {
-      const { rotation } = deviceMotionData;
-      if (rotation) {
-        setRotation({
-          alpha: rotation.alpha,
-          beta: rotation.beta,
-          gamma: rotation.gamma
-        });
-      }
-    })
+  // Hook: Initializes action listener to record rotation data - used to ensure the listener is not re-setup across renders (no dependencies). Focus effect used to ensure listener is removed when swapping to a different page.
+  useFocusEffect(
+    useCallback(()=>{
+      DeviceMotion.setUpdateInterval(1000/60);
+      DeviceMotion.addListener(deviceMotionData => {
+        const { rotation } = deviceMotionData;
+        if (rotation) {
+          setRotation({
+            alpha: rotation.alpha,
+            beta: rotation.beta,
+            gamma: rotation.gamma
+          });
+        }
+      })
 
-    // Helper: Removes listener, runs when the component unmounts
-    return () => {
-      DeviceMotion.removeAllListeners();
-    };
-  }, [])
+      // Helper: Removes listener, runs when the component unmounts
+      return () => {
+        console.log("Removing rotation action listener");
+        DeviceMotion.removeAllListeners();
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      };
+    }, [])
+  );
 
   // Hook: Updates rotation reference value, triggered upon change of the rotation state variable
   useEffect(() => {
@@ -74,46 +79,49 @@ export default function App() {
     }
   },[genText]);
 
-  // Hook: Initalizes the interval that automatically takes a photo - used to ensure the listener is not re-setup across renders (only dependent on camera ready state)
-  useEffect(() => {
-    console.log("Initiating interval.")
-    let isProcessing = false;
-    
-    const interval = setInterval(async () => {
-      // Access the current rotation value from the ref
-      const currentAngle = (rotationRef.current.beta * (180/Math.PI));
-      console.log("x: " + currentAngle.toFixed(2) + "°, Camera ready: " + isCameraReady);
+  // Hook: Initalizes the interval that automatically takes a photo - used to ensure the listener is not re-setup across renders (only dependent on camera ready state). Focus effect used to ensure listener is removed when swapping to a different page.
+  useFocusEffect(
+    useCallback(() => {
+      console.log("Initiating interval.")
+      let isProcessing = false;
       
-      // Only proceed if camera is ready, phone is upright, and we're not already processing
-      if (currentAngle > uprightAngle && isCameraReady && !isProcessing && cameraRef.current) {
-        isProcessing = true;
-        resetPhoto();
+      const interval = setInterval(async () => {
+        // Access the current rotation value from the ref
+        const currentAngle = (rotationRef.current.beta * (180/Math.PI));
+        console.log("x: " + currentAngle.toFixed(2) + "°, Camera ready: " + isCameraReady);
         
-        try {
-          console.log("Taking picture...");
-          const photoUri = await takePicture(); // Capture the returned URI
+        // Only proceed if camera is ready, phone is upright, and we're not already processing
+        if (currentAngle > uprightAngle && isCameraReady && !isProcessing && cameraRef.current) {
+          isProcessing = true;
+          resetPhoto();
           
-          if (photoUri) {
-            // Use the URI directly instead of depending on state update
-            console.log("URI captured, generating description...");
-            await generateDescription(photoUri); // Pass the URI explicitly
-          } else {
-            console.log("No URI after taking picture");
+          try {
+            console.log("Taking picture...");
+            const photoUri = await takePicture(); // Capture the returned URI
+            
+            if (photoUri) {
+              // Use the URI directly instead of depending on state update
+              console.log("URI captured, generating description...");
+              await generateDescription(photoUri); // Pass the URI explicitly
+            } else {
+              console.log("No URI after taking picture");
+            }
+          } catch (error) {
+            console.error('Error in photo cycle:', error);
+            resetCamera(); // Reset camera on error
+          } finally {
+            isProcessing = false;
           }
-        } catch (error) {
-          console.error('Error in photo cycle:', error);
-          resetCamera(); // Reset camera on error
-        } finally {
-          isProcessing = false;
         }
-      }
-    }, 10000);
+      }, 10000);
 
-    // Helper: Terminates the interval, runs when the component unmounts
-    return () => {
-      clearInterval(interval);
-    };
-  }, [isCameraReady]); // Depend on camera ready state
+      // Helper: Terminates the interval, runs when the component unmounts
+      return () => {
+        console.log("Terminating camera capture interval")
+        clearInterval(interval);
+      };
+    }, [isCameraReady])
+  );
 
   // Helper function: Camera re-mounting
   const resetCamera = () => {
