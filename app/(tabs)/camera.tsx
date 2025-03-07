@@ -7,6 +7,7 @@ import { uriToBase64, imgToText } from './gemini_util';
 import { DeviceMotion } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 
 // Main View
 export default function App() {
@@ -30,6 +31,89 @@ export default function App() {
   // Configuration constants
   const uprightAngle = 50;
   const modeCount = 2;
+  
+
+  const [recognizing, setRecognizing] = useState(false);
+  const [activeTranscript, setActiveTranscript] = useState("");
+  const [finalTranscript, setFinalTranscript] = useState("");
+  const [isFinal, setIsFinal] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [audioToggler, setAudioToggler] = useState(false);
+
+  useSpeechRecognitionEvent("start", () => setRecognizing(true));
+  useSpeechRecognitionEvent("end", () => setRecognizing(false));
+  useSpeechRecognitionEvent("result", (event) => {
+    setActiveTranscript(event.results[0]?.transcript.trimStart());
+    let text = (handleText(event.results[0]?.transcript.trimStart()));
+    setFinalTranscript(text);
+    setIsFinal(event.isFinal);
+  });
+  useSpeechRecognitionEvent("error", (event) => {
+    if (isFocused && event.error == "no-speech"){
+      console.log("No speech has been detected")
+    }
+    else if (isFocused){
+      console.log("Transcription terminated due to page unfocus")
+    }
+    else{
+      console.log("error code:", event.error, "error message:", event.message);
+    }
+  });
+
+  const handleStart = async () => {
+    const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!result.granted) {
+      console.warn("Permissions not granted", result);
+      return;
+    }
+    // Start speech recognition
+    ExpoSpeechRecognitionModule.start({
+      lang: "en-US",
+      interimResults: true,                           
+      maxAlternatives: 1,
+      continuous: true,                          // TO DO: SET THIS TO TRUE AND IMPLEMENT FUNCTIONS TO 1) AUTOMATICALLY DELETE REPEATED DATA (FROM INTERIM RESULTS) AND APPEND NEW DATA AND 2) AN INTERVAL THAT WILL TRIGGER PHOTO CAPTURE IF THE DATA FIELD IS NON-EMPTY AND NO NEW DATA IS RECEIVED (COMPARED TO THE PREVIOUS INTERVAL INSTANCE) [CAN ALSO PROGRAM TO LOOK OUT FOR STATEMENTS SUCH AS "NEVERMIND" THAT WILL VOID THE COMMAND AND RESET THE TRANSCRIPTION] 
+      requiresOnDeviceRecognition: false,
+      addsPunctuation: false,
+      contextualStrings: ["Carlsen", "Nepomniachtchi", "Praggnanandhaa"],
+    });
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      handleStart();
+      
+      return () => {
+        setIsFocused(false);
+        ExpoSpeechRecognitionModule.stop();
+      };
+    }, [])
+  );
+
+  useEffect(() => {
+    console.log("Transcript:", activeTranscript, "; isFinal:", isFinal);
+  }, [activeTranscript, isFinal]);
+
+  useEffect (() => {
+    console.log("Ongoing Transcript:", finalTranscript);
+  }, [finalTranscript]);
+
+  const handleText = (activeTranscript: string) => {
+    // Current active transcript is empty
+    if (activeTranscript == ""){
+      console.log('Text handler: No new text has been detected.')
+    }
+    // Current active transcript has been reset and does not contain any of the existing data
+    else if (finalTranscript.indexOf(activeTranscript.split(" ")[0]) == -1){
+      return (finalTranscript + " " + activeTranscript);
+    }
+    // Current active transcript is a continuation of the existing data
+    else if (activeTranscript.substring(0, finalTranscript.length - finalTranscript.indexOf(activeTranscript.split(" ")[0])) == finalTranscript.substring(finalTranscript.indexOf(activeTranscript.split(" ")[0]), finalTranscript.length)){
+      return (finalTranscript + activeTranscript.substring(finalTranscript.length - finalTranscript.indexOf(activeTranscript.split(" ")[0]), activeTranscript.length));
+    }
+    return finalTranscript;
+  }
+
 
   // Hook: Initializes action listener to record rotation data - used to ensure the listener is not re-setup across renders (no dependencies). Focus effect used to ensure listener is removed when swapping to a different page.
   useFocusEffect(
