@@ -3,7 +3,7 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button, StyleSheet, Text, View, StatusBar } from 'react-native';
 import * as Speech from "expo-speech";
-import { uriToBase64, imgToText } from './gemini_util';
+import { uriToBase64, imgToText, customRequest } from './gemini_util';
 import { DeviceMotion } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
@@ -30,7 +30,8 @@ export default function App() {
 
   // Configuration constants
   const uprightAngle = 50;
-  const modeCount = 2;
+  const modeCount = 2;                    // Soon to be deprecated
+  const audioTimeout = 2000;
   
 
   const [recognizing, setRecognizing] = useState(false);
@@ -38,7 +39,10 @@ export default function App() {
   const [finalTranscript, setFinalTranscript] = useState("");
   const [isFinal, setIsFinal] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const [audioToggler, setAudioToggler] = useState(false);
+  const [lastTranscript, setLastTranscript] = useState("");
+
+  const lastTranscriptRef = useRef(lastTranscript);
+  const finalTranscriptRef = useRef(finalTranscript);
 
   useSpeechRecognitionEvent("start", () => setRecognizing(true));
   useSpeechRecognitionEvent("end", () => setRecognizing(false));
@@ -82,6 +86,7 @@ export default function App() {
     useCallback(() => {
       setIsFocused(true);
       handleStart();
+      console.log("Speech recognition initiated.")
       
       return () => {
         setIsFocused(false);
@@ -96,7 +101,12 @@ export default function App() {
 
   useEffect (() => {
     console.log("Ongoing Transcript:", finalTranscript);
+    finalTranscriptRef.current = finalTranscript;
   }, [finalTranscript]);
+
+  useEffect (() => {
+    lastTranscriptRef.current = lastTranscript;
+  }, [lastTranscript]);
 
   const handleText = (activeTranscript: string) => {
     // Current active transcript is empty
@@ -113,6 +123,82 @@ export default function App() {
     }
     return finalTranscript;
   }
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log("Initiating interval.")
+      let isProcessing = false;
+      
+      
+
+      const interval = setInterval(async () => {
+        if (finalTranscriptRef.current == "" && lastTranscriptRef.current == "") {
+          // Nothing has been said
+        }
+        else if (finalTranscriptRef.current != lastTranscriptRef.current){
+          setLastTranscript(finalTranscriptRef.current);
+        }
+        else {
+          // Access the current rotation value from the ref
+          const currentAngle = (rotationRef.current.beta * (180/Math.PI));
+          console.log("x: " + currentAngle.toFixed(2) + "°, Camera ready: " + isCameraReady);
+          
+          // Only proceed if camera is ready, phone is upright, and we're not already processing
+          if (currentAngle > uprightAngle && isCameraReady && !isProcessing && cameraRef.current) {
+            isProcessing = true;
+            resetPhoto();
+            
+            try {
+              console.log("Taking picture...");
+              const photoUri = await takePicture(); // Capture the returned URI
+              
+              if (photoUri) {
+                // Use the URI directly instead of depending on state update
+                console.log("URI captured, generating description...");
+                await generateResponse(photoUri, finalTranscriptRef.current); // Pass the URI explicitly
+              } else {
+                console.log("No URI after taking picture");
+              }
+            } catch (error) {
+              console.error('Error in photo cycle:', error);
+              resetCamera(); // Reset camera on error
+            } finally {
+              isProcessing = false;
+            }
+          }
+          else {
+            // Implement a variable trigger to display a warning that audio has been detected and not in use and advising the user to raise the phone to activate
+          }
+          setFinalTranscript("");
+        }
+      }, audioTimeout);
+
+      // Helper: Terminates the interval, runs when the component unmounts
+      return () => {
+        console.log("Terminating camera capture interval")
+        clearInterval(interval);
+      };
+    }, [isCameraReady])
+  );
+
+
+  const generateResponse = async (photoUri: string | null = null, prompt: string) => {
+    // The passed URI is used if available, otherwise the state URI is used
+    const imageUri = photoUri || uri;
+    
+    // Generates the description of the image if the URI is available
+    if (imageUri) {
+      const base64 = await uriToBase64(imageUri);
+      const text = await customRequest(base64, prompt);
+      setGenText(text);
+      console.log("Gemini Vision to Text Received");
+    } else {
+      console.log("No URI available for description");
+    }
+  };
+
+
+
 
 
   // Hook: Initializes action listener to record rotation data - used to ensure the listener is not re-setup across renders (no dependencies). Focus effect used to ensure listener is removed when swapping to a different page.
@@ -164,7 +250,7 @@ export default function App() {
   },[genText]);
 
   // Hook: Initalizes the interval that automatically takes a photo - used to ensure the listener is not re-setup across renders (only dependent on camera ready state). Focus effect used to ensure listener is removed when swapping to a different page.
-  useFocusEffect(
+  /*useFocusEffect(
     useCallback(() => {
       console.log("Initiating interval.")
       let isProcessing = false;
@@ -205,7 +291,7 @@ export default function App() {
         clearInterval(interval);
       };
     }, [isCameraReady])
-  );
+  ); */
 
   // Helper function: Camera re-mounting
   const resetCamera = () => {
