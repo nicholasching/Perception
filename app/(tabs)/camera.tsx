@@ -3,7 +3,7 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button, StyleSheet, Text, View, StatusBar } from 'react-native';
 import * as Speech from "expo-speech";
-import { uriToBase64, imgToText, customRequest } from './gemini_util';
+import { uriToBase64, imgToText, customRequest } from '../utils/gemini_util';
 import { DeviceMotion } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
@@ -31,7 +31,7 @@ export default function App() {
   // Configuration constants
   const uprightAngle = 50;
   const modeCount = 2;                    // Soon to be deprecated
-  const audioTimeout = 2000;
+  const audioTimeout = 1000;
   
 
   const [recognizing, setRecognizing] = useState(false);
@@ -70,26 +70,42 @@ export default function App() {
       console.warn("Permissions not granted", result);
       return;
     }
-    // Start speech recognition
-    ExpoSpeechRecognitionModule.start({
-      lang: "en-US",
-      interimResults: true,                           
-      maxAlternatives: 1,
-      continuous: true,                          // TO DO: SET THIS TO TRUE AND IMPLEMENT FUNCTIONS TO 1) AUTOMATICALLY DELETE REPEATED DATA (FROM INTERIM RESULTS) AND APPEND NEW DATA AND 2) AN INTERVAL THAT WILL TRIGGER PHOTO CAPTURE IF THE DATA FIELD IS NON-EMPTY AND NO NEW DATA IS RECEIVED (COMPARED TO THE PREVIOUS INTERVAL INSTANCE) [CAN ALSO PROGRAM TO LOOK OUT FOR STATEMENTS SUCH AS "NEVERMIND" THAT WILL VOID THE COMMAND AND RESET THE TRANSCRIPTION] 
-      requiresOnDeviceRecognition: false,
-      addsPunctuation: false,
-      contextualStrings: ["Carlsen", "Nepomniachtchi", "Praggnanandhaa"],
-    });
+    
+    // Small delay to ensure component is fully mounted before starting speech recognition
+    setTimeout(() => {
+      console.log("Starting speech recognition after delay");
+      // Start speech recognition
+      ExpoSpeechRecognitionModule.start({
+        lang: "en-US",
+        interimResults: true,                           
+        maxAlternatives: 1,
+        continuous: true,
+        requiresOnDeviceRecognition: false,
+        addsPunctuation: false,
+        contextualStrings: ["Carlsen", "Nepomniachtchi", "Praggnanandhaa"],
+      });
+    }, 500);
   };
 
   useFocusEffect(
     useCallback(() => {
       setIsFocused(true);
-      handleStart();
-      console.log("Speech recognition initiated.")
+      
+      // Add a flag to track if speech recognition has been started
+      console.log("Focus effect triggered, attempting to start speech recognition");
+      
+      // Make sure any previous instances are stopped first
+      ExpoSpeechRecognitionModule.stop();
+      
+      // Small delay before starting to ensure proper cleanup
+      setTimeout(() => {
+        handleStart();
+        console.log("Speech recognition initiated.");
+      }, 300);
       
       return () => {
         setIsFocused(false);
+        console.log("Stopping speech recognition due to focus lost");
         ExpoSpeechRecognitionModule.stop();
       };
     }, [])
@@ -128,8 +144,6 @@ export default function App() {
     useCallback(() => {
       console.log("Initiating interval.")
       let isProcessing = false;
-      
-      
 
       const interval = setInterval(async () => {
         if (finalTranscriptRef.current == "" && lastTranscriptRef.current == "") {
