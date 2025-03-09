@@ -1,5 +1,6 @@
-import { Text, View, StyleSheet, TextInput, Button } from 'react-native';
-import { useState, useEffect } from 'react';
+import { Text, View, StyleSheet, TextInput, Button, StatusBar } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Slider from '@react-native-community/slider';
@@ -18,6 +19,18 @@ export default function SettingsScreen() {
   useEffect(() => {
     loadSettings();
   }, []);
+
+  // Hook: Set status bar to blue when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      StatusBar.setBackgroundColor("#0000FF");
+      StatusBar.setBarStyle("light-content");
+      
+      return () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      };
+    }, [])
+  );
   
   // Function: Save settings to storage
   const saveSettings = async () => {

@@ -8,6 +8,7 @@ import { DeviceMotion } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Main View
 export default function App() {
@@ -28,11 +29,43 @@ export default function App() {
   const rotationRef = useRef(rotation);
   const modeRef = useRef(mode);
 
-  // Configuration constants
-  const uprightAngle = 50;
-  const modeCount = 2;                    // Soon to be deprecated
-  const audioTimeout = 1000;
+  // Configuration constants - updated to use state
+  const [uprightAngle, setUprightAngle] = useState(50); // Default value
+  const [audioTimeout, setAudioTimeout] = useState(1000); // Default value in ms
+  const uprightAngleRef = useRef(uprightAngle);
+  const audioTimeoutRef = useRef(audioTimeout);
   
+  const modeCount = 2; // Soon to be deprecated
+  
+  // Hook: Load settings when component mounts
+  useEffect(() => {
+    loadSettings();
+  }, []);
+  
+  // Function: Load settings from storage
+  const loadSettings = async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem('userSettings');
+      if(savedSettings !== null) {
+        const parsedSettings = JSON.parse(savedSettings);
+        
+        // Load activation angle
+        if (parsedSettings.activationAngle !== undefined) {
+          setUprightAngle(parsedSettings.activationAngle);
+          uprightAngleRef.current = parsedSettings.activationAngle;
+        }
+        
+        // Load audio timeout and convert from seconds to milliseconds
+        if (parsedSettings.audioTimeout !== undefined) {
+          const timeoutMs = parsedSettings.audioTimeout * 1000;
+          setAudioTimeout(timeoutMs);
+          audioTimeoutRef.current = timeoutMs;
+        }
+      }
+    } catch (error) {
+      console.log('Error loading settings:', error);
+    }
+  };
 
   const [recognizing, setRecognizing] = useState(false);
   const [activeTranscript, setActiveTranscript] = useState("");
@@ -91,6 +124,9 @@ export default function App() {
     useCallback(() => {
       setIsFocused(true);
       
+      // Reload settings when screen comes into focus
+      loadSettings();
+      
       // Add a flag to track if speech recognition has been started
       console.log("Focus effect triggered, attempting to start speech recognition");
       
@@ -113,6 +149,7 @@ export default function App() {
 
   useEffect(() => {
     console.log("Transcript:", activeTranscript, "; isFinal:", isFinal);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [activeTranscript, isFinal]);
 
   useEffect (() => {
@@ -157,8 +194,8 @@ export default function App() {
           const currentAngle = (rotationRef.current.beta * (180/Math.PI));
           console.log("x: " + currentAngle.toFixed(2) + "°, Camera ready: " + isCameraReady);
           
-          // Only proceed if camera is ready, phone is upright, and we're not already processing
-          if (currentAngle > uprightAngle && isCameraReady && !isProcessing && cameraRef.current) {
+          // Only proceed if camera is ready, phone is upright, and not already processing
+          if (currentAngle > uprightAngleRef.current && isCameraReady && !isProcessing && cameraRef.current) {
             isProcessing = true;
             resetPhoto();
             
@@ -185,7 +222,7 @@ export default function App() {
           }
           setFinalTranscript("");
         }
-      }, audioTimeout);
+      }, audioTimeoutRef.current); // Use the ref value for dynamic timeout
 
       // Helper: Terminates the interval, runs when the component unmounts
       return () => {
@@ -218,7 +255,7 @@ export default function App() {
   // Hook: Initializes action listener to record rotation data - used to ensure the listener is not re-setup across renders (no dependencies). Focus effect used to ensure listener is removed when swapping to a different page.
   useFocusEffect(
     useCallback(()=>{
-      DeviceMotion.setUpdateInterval(1000/60);
+      DeviceMotion.setUpdateInterval(1000/30);
       DeviceMotion.addListener(deviceMotionData => {
         const { rotation } = deviceMotionData;
         if (rotation) {
@@ -242,7 +279,7 @@ export default function App() {
   // Hook: Updates rotation reference value, triggered upon change of the rotation state variable
   useEffect(() => {
     // Haptic feedback when phone crosses the threshold angle, reset camera state
-    if ((rotationRef.current.beta * (180/Math.PI)) < uprightAngle && (rotation.beta * (180/Math.PI)) > uprightAngle || (rotationRef.current.beta * (180/Math.PI)) > uprightAngle && (rotation.beta * (180/Math.PI)) < uprightAngle){
+    if ((rotationRef.current.beta * (180/Math.PI)) < uprightAngleRef.current && (rotation.beta * (180/Math.PI)) > uprightAngleRef.current || (rotationRef.current.beta * (180/Math.PI)) > uprightAngleRef.current && (rotation.beta * (180/Math.PI)) < uprightAngleRef.current){
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
       resetCamera();
     }
@@ -396,7 +433,7 @@ export default function App() {
   };
 
   // Recording view: Displayed when phone is upright
-  if ((rotationRef.current.beta * (180/Math.PI)) > uprightAngle){
+  if ((rotationRef.current.beta * (180/Math.PI)) > uprightAngleRef.current){
     return (
       <View style={styles.background}>
         <CameraView 
@@ -422,7 +459,7 @@ export default function App() {
   return (
     <View style={styles.background}>
       <Text style={styles.inactivetext}>The camera is currently inactive.</Text>
-      <Text style={styles.inactivetext}>Tilt your phone above an angle of {uprightAngle}° to activate the camera.</Text>
+      <Text style={styles.inactivetext}>Tilt your phone above an angle of {uprightAngleRef.current}° to activate the camera.</Text>
       <Text style={styles.inactivetext}>Current Angle: {(rotationRef.current.beta * (180/Math.PI)).toFixed(1)}°</Text>
       <Button color = {"#00FF00"} onPress={toggleMode} title={"Toggle Mode"} />
       <StatusBar backgroundColor = "#00FF00" barStyle="light-content"/>
