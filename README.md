@@ -58,9 +58,10 @@ An assistive mobile app created to empower visually impaired users; automaticall
 
 ##### Option 2: Development Build APK
    ```bash
-   npx expo run:android --varient release
-   adb pull/app/APP_NAME/base.apk ./APP_NAME.apk
+   npx expo run:android
    ```
+- Located at `android/app/build/outputs/apk/debug/app-debug.apk`
+- Once installed on testing device, open dev settings (by shaking the device), and change the build location to `YOUR_LOCAL_IP:8081`
 - Used for distribuition of a development build for initial testing
 
 ##### Option 3: Standalone APK
@@ -68,6 +69,7 @@ An assistive mobile app created to empower visually impaired users; automaticall
    cd android
    ./gradlew assembleRelease
    ```
+- Located at `android/app/build/outputs/apk/release/app-release.apk`
 - Bundles all JavaScript into the APK
 - Suitable for distribuition to end users
 
