@@ -31,6 +31,8 @@ export default function App() {
   const [isFinal, setIsFinal] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [lastTranscript, setLastTranscript] = useState("");
+  const [isCurrentlySpeaking, setIsCurrentlySpeaking] = useState(false);
+  const [isCurrentlyProcessing, setIsCurrentlyProcessing] = useState(false);
 
   // Reference hook variables for function use (workaround for useState closure)
   const rotationRef = useRef(rotation);
@@ -38,6 +40,9 @@ export default function App() {
   const audioTimeoutRef = useRef(audioTimeout);
   const lastTranscriptRef = useRef(lastTranscript);
   const finalTranscriptRef = useRef(finalTranscript);
+  const isCurrentlySpeakingRef = useRef(isCurrentlySpeaking);
+  const isCurrentlyProcessingRef = useRef(isCurrentlyProcessing);
+  const isCurrentlyRecognizingRef = useRef(recognizing);
 
   // Hook: Load settings when component mounts
   useEffect(() => {
@@ -67,6 +72,30 @@ export default function App() {
       };
     }, [])
   );  
+
+  // Hook: Updates current speech output status 
+  useFocusEffect(
+    useCallback(() => {
+      const interval = setInterval(async () => {
+        // Update speaking status
+        let isSpeaking = await Speech.isSpeakingAsync();
+        setIsCurrentlySpeaking(isSpeaking);
+
+        // Initialize speech recognition if not already recognizing, processing, speaking, and angle is above threshold
+        if (!isCurrentlyRecognizingRef.current && !isCurrentlyProcessingRef.current && !isSpeaking && (rotationRef.current.beta * (180/Math.PI)) > uprightAngleRef.current){
+          setRecognizing(true); // Temporary solution: need to check if actually sucessfully started
+          handleStart();
+          console.log("Speech recognition initiated.");
+        }
+      }, 100);
+
+      // Helper: Terminates the interval, runs when the component unmounts
+      return () => {
+        console.log("Terminating speech output status interval")
+        clearInterval(interval);
+      };
+    }, [])
+  );
   
   // Hook: Starts speech recognition and loads settings when the screen comes into focus
   useFocusEffect(
@@ -76,17 +105,8 @@ export default function App() {
       // Reload settings when screen comes into focus
       loadSettings();
       
-      // Add a flag to track if speech recognition has been started
-      console.log("Focus effect triggered, attempting to start speech recognition");
-      
       // Make sure any previous instances are stopped first
       ExpoSpeechRecognitionModule.stop();
-      
-      // Small delay before starting to ensure proper cleanup
-      setTimeout(() => {
-        handleStart();
-        console.log("Speech recognition initiated.");
-      }, 300);
       
       return () => {
         setIsFocused(false);
@@ -117,16 +137,18 @@ export default function App() {
           // Only proceed if camera is ready, phone is upright, and not already processing
           if (currentAngle > uprightAngleRef.current && isCameraReady && !isProcessing && cameraRef.current) {
             isProcessing = true;
+            setIsCurrentlyProcessing(true);
+            ExpoSpeechRecognitionModule.stop();
+            console.log("Stopping speech recognition due to processing start")
             resetPhoto();
             
             try {
               console.log("Taking picture...");
-              const photoUri = await takePicture(); // Capture the returned URI
+              const photoUri = await takePicture();
               
               if (photoUri) {
-                // Use the URI directly instead of depending on state update
                 console.log("URI captured, generating description...");
-                await generateResponse(photoUri, finalTranscriptRef.current); // Pass the URI explicitly
+                await generateResponse(photoUri, finalTranscriptRef.current);
               } else {
                 console.log("No URI after taking picture");
               }
@@ -191,6 +213,21 @@ export default function App() {
     lastTranscriptRef.current = lastTranscript;
   }, [lastTranscript]);
 
+  // Hook: Updates the reference value of the speaking state
+  useEffect (() => {
+    isCurrentlySpeakingRef.current = isCurrentlySpeaking;
+  }, [isCurrentlySpeaking]);
+
+  // Hook: Updates the reference value of the processing state
+  useEffect (() => {
+    isCurrentlyProcessingRef.current = isCurrentlyProcessing;
+  }, [isCurrentlyProcessing]);
+
+  // Hook: Updates the reference value of the recognizing state
+  useEffect (() => {
+    isCurrentlyRecognizingRef.current = recognizing;
+  }, [recognizing]);
+  
   // Hook: Updates rotation reference value, triggered upon change of the rotation state variable
   useEffect(() => {
     // Haptic feedback when phone crosses the threshold angle, reset camera state
@@ -198,12 +235,18 @@ export default function App() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
       resetCamera();
     }
+    // Stopping speech recognition if the phone is below the threshold angle
+    if (rotation.beta * (180/Math.PI) < uprightAngleRef.current && recognizing){
+      ExpoSpeechRecognitionModule.stop();
+      console.log("Stopping speech recognition due to phone angle");
+    }
     rotationRef.current = rotation;
   }, [rotation]);
 
   // Hook: Speaks the generated text, triggered upon change of the generated text state variable
   useEffect(() => {
     if (genText){
+      setIsCurrentlyProcessing(false);
       speak();
     }
   },[genText]);
@@ -353,6 +396,27 @@ export default function App() {
 
   // Recording view: Displayed when phone is upright
   if ((rotationRef.current.beta * (180/Math.PI)) > uprightAngleRef.current){
+    let statusText;
+
+    if (!isCameraReady){
+      statusText = "Preparing Camera";
+    }
+    else if (!recognizing && !isCurrentlyProcessing && !isCurrentlySpeaking){
+      statusText = "Recording"
+    }
+    else if (finalTranscript == "" && !isCurrentlyProcessing && !isCurrentlySpeaking){
+      statusText = "Listening"
+    }
+    else if (!isCurrentlyProcessing && !isCurrentlySpeaking){
+      statusText = finalTranscript
+    }
+    else if (!isCurrentlySpeaking){
+      statusText = "Processing"
+    }
+    else {
+      statusText = "Responding"
+    }
+
     return (
       <View style={styles.background}>
         <CameraView 
@@ -367,7 +431,7 @@ export default function App() {
         >
         </CameraView>
         <Text style={styles.recordingtext}>
-          {isCameraReady ? "Recording" : "Preparing camera..."}
+          {statusText}
         </Text>
         <StatusBar backgroundColor = "#FF0000" barStyle="light-content"/>
       </View>
