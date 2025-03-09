@@ -1,14 +1,14 @@
 # iSight
 An assistive mobile app created to empower visually impaired users; automatically converts camera images into spoken descriptions with intutive voice command activation and prompting.
 
-### Overview
+## Overview
 
-### Features
-
-
+## Features
 
 
-### Tech Stack
+
+
+## Tech Stack
 #### Frontend
 - **Frameworks:** React Native with [`Expo`](https://expo.dev)
 - **Language:** TypeScript
@@ -19,7 +19,7 @@ An assistive mobile app created to empower visually impaired users; automaticall
 
 
 
-### Get Started
+## Get Started
 
 1. Install dependencies:
 
