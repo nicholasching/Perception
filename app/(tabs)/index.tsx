@@ -29,7 +29,7 @@ export default function Index() {
       }}
     >
       <Text style={styles.headingOne}>Good Morning, Kimberly!</Text>                       
-      <Text style={styles.headingTwo}>Welcome to iSpy.</Text>
+      <Text style={styles.headingTwo}>Welcome to iSight.</Text>
       
       <Link href="/camera" asChild>
         <TouchableOpacity 

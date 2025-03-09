@@ -29,7 +29,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="camera"
         options={{
-          title: 'See 4 Me',
+          title: 'Camera',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'camera-sharp' : 'camera-outline'} color={color} size={24} />
           ),
