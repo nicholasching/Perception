@@ -1,7 +1,7 @@
 // Importing necessary modules
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Button, StyleSheet, Text, View, StatusBar } from 'react-native';
+import { Button, StyleSheet, Text, View, StatusBar, Animated } from 'react-native';
 import * as Speech from "expo-speech";
 import { uriToBase64, imgToText, customRequest } from '../utils/gemini_util';
 import { DeviceMotion } from 'expo-sensors';
@@ -43,6 +43,11 @@ export default function App() {
   const isCurrentlySpeakingRef = useRef(isCurrentlySpeaking);
   const isCurrentlyProcessingRef = useRef(isCurrentlyProcessing);
   const isCurrentlyRecognizingRef = useRef(recognizing);
+
+  // State and reference variables for animations
+  const [prevStatusText, setPrevStatusText] = useState("");
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   // Hook: Load settings when component mounts
   useEffect(() => {
@@ -251,6 +256,62 @@ export default function App() {
     }
   },[genText]);
 
+  // Hook: Animate status text when it changes
+  useEffect(() => {
+    let statusText;
+    
+    if (!isCameraReady) {
+      statusText = "Preparing Camera";
+    } 
+    else if (!recognizing && !isCurrentlyProcessing && !isCurrentlySpeaking) {
+      statusText = "Recording";
+    } 
+    else if (finalTranscript == "" && !isCurrentlyProcessing && !isCurrentlySpeaking) {
+      statusText = "Listening";
+    } 
+    else if (!isCurrentlyProcessing && !isCurrentlySpeaking) {
+      statusText = finalTranscript;
+    } 
+    else if (!isCurrentlySpeaking) {
+      statusText = "Processing";
+    } 
+    else {
+      statusText = "Responding";
+    }
+    
+    if (prevStatusText !== statusText) {
+      // Animate out
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 0.8,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setPrevStatusText(statusText);
+        
+        // Animate in
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    }
+  }, [isCameraReady, recognizing, isCurrentlyProcessing, isCurrentlySpeaking, finalTranscript]);
+
   // Function: Load settings from storage
   const loadSettings = async () => {
     try {
@@ -396,31 +457,10 @@ export default function App() {
 
   // Recording view: Displayed when phone is upright
   if ((rotationRef.current.beta * (180/Math.PI)) > uprightAngleRef.current){
-    let statusText;
-
-    if (!isCameraReady){
-      statusText = "Preparing Camera";
-    }
-    else if (!recognizing && !isCurrentlyProcessing && !isCurrentlySpeaking){
-      statusText = "Recording"
-    }
-    else if (finalTranscript == "" && !isCurrentlyProcessing && !isCurrentlySpeaking){
-      statusText = "Listening"
-    }
-    else if (!isCurrentlyProcessing && !isCurrentlySpeaking){
-      statusText = finalTranscript
-    }
-    else if (!isCurrentlySpeaking){
-      statusText = "Processing"
-    }
-    else {
-      statusText = "Responding"
-    }
-
     return (
       <View style={styles.background}>
         <CameraView 
-          key={cameraKey} // Key used to force camera remounting
+          key={cameraKey}
           ref={cameraRef}
           style={styles.camera} 
           facing={facing}
@@ -430,9 +470,19 @@ export default function App() {
           }}
         >
         </CameraView>
-        <Text style={styles.recordingtext}>
-          {statusText}
-        </Text>
+        <View style={styles.statusContainer}>
+          <Animated.Text 
+            style={[
+              styles.recordingtext,
+              { 
+                opacity: fadeAnim,
+                transform: [{scale: scaleAnim}] 
+              }
+            ]}
+          >
+            {prevStatusText}
+          </Animated.Text>
+        </View>
         <StatusBar backgroundColor = "#FF0000" barStyle="light-content"/>
       </View>
     );
@@ -496,5 +546,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
+  },
+  statusContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 5,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
   },
 });
