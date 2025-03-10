@@ -48,6 +48,23 @@ export default function Index() {
     }, [])
   );
   
+  // Time dependent greeting
+  let greeting;
+
+  const now = new Date();
+  const hours = now.getHours();
+  
+  if (hours < 12) {
+    greeting = "Good Morning";
+  } 
+  else if (hours < 18) {
+    greeting = "Good Afternoon";
+  } 
+  else {
+    greeting = "Good Evening";
+  }
+
+
   // View: Welcome screen
   return (
     <View
@@ -58,7 +75,7 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-      <Text style={styles.headingOne}>Good Morning, {displayName}!</Text>                       
+      <Text style={styles.headingOne}>{greeting}, {displayName}!</Text>                       
       <Text style={styles.headingTwo}>Welcome to iSight.</Text>
       
       <Link href="/camera" asChild>
