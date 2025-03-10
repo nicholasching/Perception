@@ -10,6 +10,7 @@ export default function SettingsScreen() {
   const [username, setUsername] = useState('');
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiModel, setGeminiModel] = useState('gemini-2.0-flash');
+  const [compressionQuality, setCompressionQuality] = useState(80); // Default compression quality
   const [activationAngle, setActivationAngle] = useState(45);
   const [audioTimeout, setAudioTimeout] = useState(2.0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -17,11 +18,13 @@ export default function SettingsScreen() {
   // Generates array of tick marks
   const audioTimeoutTicks = Array.from({ length: 10 }, (_, i) => (i + 1) * 0.5);
   const angleTicks = Array.from({ length: 10 }, (_, i) => i * 10);
+  const qualityTicks = Array.from({ length: 7 }, (_, i) => 40 + i * 10); // From 40 to 100 in steps of 10
 
   // Array of Gemini model options
   const modelOptions = [
     { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (more accurate responses)' },
     { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite (quicker responses)' },
+    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (legacy model)" },
   ];
   
   // Hook: Load settings when component mounts
@@ -50,6 +53,7 @@ export default function SettingsScreen() {
         username,
         geminiApiKey,
         geminiModel,
+        compressionQuality,
         activationAngle,
         audioTimeout,
       };
@@ -82,6 +86,9 @@ export default function SettingsScreen() {
         }
         if (parsedSettings.geminiModel !== undefined) {
           setGeminiModel(parsedSettings.geminiModel);
+        }
+        if (parsedSettings.compressionQuality !== undefined) {
+          setCompressionQuality(parsedSettings.compressionQuality);
         }
       }
     } catch (error) {
@@ -144,6 +151,30 @@ export default function SettingsScreen() {
             ))}
           </View>
         )}
+      </View>
+      
+      <Text style={styles.label}>Image Compression Quality: {compressionQuality}%</Text>
+      <View>
+        <Slider
+          style={styles.slider}
+          minimumValue={40}
+          maximumValue={100}
+          step={10}
+          value={compressionQuality}
+          onValueChange={(value) => setCompressionQuality(value)}
+          minimumTrackTintColor="#2196F3"
+          maximumTrackTintColor="#FFFFFF"
+          thumbTintColor="#2196F3"
+          tapToSeek={false}
+        />
+        <View style={styles.ticksContainer}>
+          {qualityTicks.map((value) => (
+            <View key={value} style={styles.tick}>
+              <View style={styles.tickMark} />
+              <Text style={styles.tickText}>{value}%</Text>
+            </View>
+          ))}
+        </View>
       </View>
       
       <Text style={styles.label}>Activation Angle: {activationAngle}°</Text>

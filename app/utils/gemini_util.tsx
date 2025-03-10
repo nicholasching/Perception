@@ -1,6 +1,7 @@
 // Importing modules
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 export class GeminiService {
   private static instance: GeminiService | null = null;
@@ -8,13 +9,14 @@ export class GeminiService {
   private model;
   private apiKey: string = "notyetinitialized";
   private modelType: string = "gemini-2.0-flash";
+  private compressionQuality: number = 0.7;
   private username: string = "User";
   private isInitialized: boolean = false;
 
   // Function: Constructor
   private constructor() {
     this.gemini = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_API_KEY);
-    this.model = this.gemini.getGenerativeModel({ model: "gemini-2.0-flash" });
+    this.model = this.gemini.getGenerativeModel({ model: "gemini-2.0-flash", temperature: 0.7, topP: 0.8, topK: 40 });
   }
 
   // Function: Retrieves an instance of the GeminiService class
@@ -39,7 +41,11 @@ export class GeminiService {
     }
     else {
       this.gemini = new GoogleGenerativeAI(this.apiKey);
-      this.model = this.gemini.getGenerativeModel({ model: this.modelType });
+      this.model = this.gemini.getGenerativeModel({ model: this.modelType, temperature: 0.7, topP: 0.8, topK: 40  });
+      
+      // Testing and warming up the model
+      let result = await this.model.generateContent(["Good morning! How are you doing?"]);
+      console.log(result.response.text());
       return true;
     }
   }
@@ -68,6 +74,9 @@ export class GeminiService {
         if (parsedSettings.geminiModel && parsedSettings.geminiModel.trim() !== '') {
           this.modelType = parsedSettings.geminiModel;
         }
+        if (parsedSettings.compressionQuality !== undefined) {
+          this.compressionQuality = parsedSettings.compressionQuality / 100;
+        }
         return true;
       }
       return false;
@@ -79,16 +88,23 @@ export class GeminiService {
     }
   }
 
-  // Function: Convert image URI to base64 format
+  // Function: Convert image URI to base64 format with compression
   public async uriToBase64(uri: string): Promise<object> {
     try {
-      const response = await fetch(uri);
+      // Image compression to reduce latency
+      const compressedImage = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: Math.round(1536 * this.compressionQuality) } }],
+        { compress: 0.5 + this.compressionQuality * 0.5, format: ImageManipulator.SaveFormat.JPEG }
+      );
+            
+      const response = await fetch(compressedImage.uri);
       const blob = await response.blob();
+      
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
           const base64String = reader.result as string;
-          // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
           resolve({
             inlineData: {
               data: base64String.split(',')[1],
@@ -101,7 +117,7 @@ export class GeminiService {
       });
     } 
     catch (error) {
-      console.error('Error converting URI to base64:', error);
+      console.error('Error compressing and converting URI to base64:', error);
       throw error;
     }
   }
