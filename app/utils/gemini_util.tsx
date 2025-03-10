@@ -16,7 +16,7 @@ export class GeminiService {
   // Function: Constructor
   private constructor() {
     this.gemini = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_API_KEY);
-    this.model = this.gemini.getGenerativeModel({ model: "gemini-2.0-flash", temperature: 0.7, topP: 0.8, topK: 40 });
+    this.model = this.gemini.getGenerativeModel({ model: "gemini-2.0-flash", temperature: 1, topP: 0.8, topK: 40 });
   }
 
   // Function: Retrieves an instance of the GeminiService class
@@ -41,7 +41,7 @@ export class GeminiService {
     }
     else {
       this.gemini = new GoogleGenerativeAI(this.apiKey);
-      this.model = this.gemini.getGenerativeModel({ model: this.modelType, temperature: 0.7, topP: 0.8, topK: 40  });
+      this.model = this.gemini.getGenerativeModel({ model: this.modelType, temperature: 1, topP: 0.8, topK: 40  });
       
       // Testing and warming up the model
       let result = await this.model.generateContent(["Good morning! How are you doing?"]);
