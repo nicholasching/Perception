@@ -27,28 +27,20 @@ An assistive mobile app created to empower visually impaired users; automaticall
    npm install
    ```
 
-2. Obtain a [Gemini API Key](https://aistudio.google.com/apikey)
-
-3. Create a `.env` file
-
-   ```bash
-   EXPO_PUBLIC_API_KEY = "YOUR_API_KEY"
-   ```
-
 #### Android
-4. Ensure the [Android SDK](https://developer.android.com/studio) is installed
+2. Ensure the [Android SDK](https://developer.android.com/studio) is installed
 
-5. Create a development build:
+3. Create a development build:
 
    ```bash
    npx expo prebuild --platform android
    ```
-6. Create `android/local.properties` to point to Android SDK path:
+4. Create `android/local.properties` to point to Android SDK path:
 
    ```text
    sdk.dir=C:\\Users\\YOUR_USERNAME\\AppData\\Local\\Android\\Sdk
    ```
-7. Complile into native Android code
+5. Complile into native Android code
 ##### Option 1: Development Testing with (Android Studio Emulator or Connected Android Device)
    ```bash
    npx expo run:android
@@ -73,7 +65,7 @@ An assistive mobile app created to empower visually impaired users; automaticall
 - Bundles all JavaScript into the APK
 - Suitable for distribuition to end users
 
-8. Start the app
+6. Start the app
    ```bash
     npx expo start
    ```
