@@ -3,7 +3,7 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button, StyleSheet, Text, View, StatusBar, Animated } from 'react-native';
 import * as Speech from "expo-speech";
-import { uriToBase64, imgToText, customRequest } from '../utils/gemini_util';
+import { GeminiService } from '../utils/gemini_util';
 import { DeviceMotion } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
@@ -12,11 +12,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Main View
 export default function App() {
-  // Camera remounting mechanism
-  const [cameraKey, setCameraKey] = useState(0);
-  const [isCameraReady, setIsCameraReady] = useState(false);
 
   // State variables (saves variable data between renders)
+  const [geminiService] = useState<GeminiService>(GeminiService.getInstance());
+  const [serviceInitialized, setServiceInitialized] = useState<boolean>(false);
+  const [cameraKey, setCameraKey] = useState(0);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [uri, setUri] = useState<string | null>(null);
@@ -53,6 +54,35 @@ export default function App() {
   useEffect(() => {
     loadSettings();
   }, []);
+
+  // Hook: Initialize Gemini when page is focused
+  useFocusEffect(
+    useCallback(() => {
+      const initializeService = async () => {
+        try {
+          if (await geminiService.initialize()) {
+            console.log("Gemini initialized successfully");
+            setServiceInitialized(true);
+          } 
+          else {
+            console.error("Failed to initialize Gemini");
+          }
+        } 
+        catch (error) {
+          console.error("Error initializing Gemini:", error);
+        }
+      };
+      
+      initializeService();
+
+      // Helper: Terminates instance, runs when the component unmounts (ensures model is updated should settings change)
+      return () => {
+        console.log("Terminating Gemini");
+        geminiService.terminate();
+        setServiceInitialized(false);
+      }
+    }, [])
+  );
 
   // Hook: Initializes action listener to record rotation data - used to ensure the listener is not re-setup across renders (no dependencies). Focus effect used to ensure listener is removed when swapping to a different page.
   useFocusEffect(
@@ -204,7 +234,6 @@ export default function App() {
   // Hook: Logs the active transcript and recognizing state
   useEffect(() => {
     console.log("Transcript:", activeTranscript, "; isFinal:", isFinal);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [activeTranscript, isFinal]);
 
   // Hook: Logs the ongoing transcript and updates the reference value
@@ -280,6 +309,7 @@ export default function App() {
     }
     
     if (prevStatusText !== statusText) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // Animate out
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -411,11 +441,26 @@ export default function App() {
     
     // Generates the description of the image if the URI is available
     if (imageUri) {
-      const base64 = await uriToBase64(imageUri);
-      const text = await customRequest(base64, prompt);
-      setGenText(text);
-      console.log("Gemini Vision to Text Received");
-    } else {
+      try {
+        // Check if service is initialized
+        if (!serviceInitialized) {
+          if (!await geminiService.initialize()) {
+            setGenText("Sorry, the vision model was not initialized properly. Please check your settings and try again.");
+            return;
+          }
+        }
+        
+        const base64 = await geminiService.uriToBase64(imageUri);
+        const text = await geminiService.customRequest(base64, prompt);
+        setGenText(text);
+        console.log("Gemini Vision to Text Received");
+      } 
+      catch (error) {
+        console.error("Error generating response:", error);
+        setGenText("Sorry, there was an error. Please try again.");
+      }
+    } 
+    else {
       console.log("No URI available for description");
     }
   };
