@@ -22,11 +22,12 @@
       },
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.nickching.x1P13P3"
+      "blockedPermissions": [
+        "android.permission.ACTIVITY_RECOGNITION"
+      ],
+      "package": "com.iSight"
     },
     "web": {
       "bundler": "metro",

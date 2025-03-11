@@ -65,6 +65,15 @@ An assistive mobile app created to empower visually impaired users; automaticall
 - Bundles all JavaScript into the APK
 - Suitable for distribuition to end users
 
+##### Option 4: Standalone Distribuition Bundle (AAB)
+   ```bash
+   cd android
+   ./gradlew bundleRelease
+   ```
+- Located at `android/app/build/outputs/bundle/release/app-release.aab`
+- Bundles all JavaScript into the APK
+- Suitable for distribuition on the Play Store
+
 6. Start the app
    ```bash
     npx expo start
