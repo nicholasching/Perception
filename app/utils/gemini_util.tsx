@@ -2,6 +2,8 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as Location from 'expo-location'
+import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
 
 export class GeminiService {
   private static instance: GeminiService | null = null;
@@ -68,7 +70,7 @@ export class GeminiService {
           this.apiKey = parsedSettings.geminiApiKey;
         }
         else {
-          alert('Please enter a valid API key in settings.');
+          alert("Please enter a valid API key in settings.");
           return false;
         }
         if (parsedSettings.geminiModel && parsedSettings.geminiModel.trim() !== '') {
@@ -79,12 +81,12 @@ export class GeminiService {
         }
         return true;
       }
-      alert('Please enter a valid API key in settings.');
+      alert("Please enter a valid API key in settings.");
       return false;
     } 
     catch (error) {
-      console.error('Error getting settings:', error);
-      alert('Error retrieving settings');
+      console.error("Error getting settings:", error);
+      alert("Error retrieving settings");
       return false;
     }
   }
@@ -118,7 +120,7 @@ export class GeminiService {
       });
     } 
     catch (error) {
-      console.error('Error compressing and converting URI to base64:', error);
+      console.error("Error compressing and converting URI to base64:", error);
       throw error;
     }
   }
@@ -129,7 +131,8 @@ export class GeminiService {
       await this.initialize();
     }
     
-    const prompt = `You are a computer vision model; your task is a act as a guide for the visually imparied. Your output is going to be turned into speech, please respond to ${this.username}'s prompt in a concise manner: ${userPrompt}`;
+    const contextString = await this.addContext(userPrompt);
+    const prompt = `You are a computer vision model; your task is a act as a guide for the visually imparied. ${contextString}. Your output is going to be turned into speech, please respond to ${this.username}'s prompt in a concise manner: ${userPrompt}`;
     const imageParts = imgBase64;
     
     try {
@@ -139,8 +142,86 @@ export class GeminiService {
       return responseText;
     } 
     catch (error) {
-      console.error('Error generating content:', error);
+      console.error("Error generating content:", error);
       return `Sorry ${this.username}, there was an error in processing that image. Please try again.`;
     }
+  }
+
+  // Function: Adds context to a user's request
+  private async addContext(userPrompt: string): Promise<string> {
+
+    userPrompt = userPrompt.toLowerCase();
+    let contextString = "Here is some additional context about the user's current surroundings: ";
+
+    if (userPrompt.includes("time") || userPrompt.includes("date") || userPrompt.includes("today") || userPrompt.includes("tomorrow")) {
+      contextString += "Time: " + Date().toString();
+    }
+
+    if (userPrompt.includes("weather") || userPrompt.includes("temperature") || userPrompt.includes("outside") || userPrompt.includes("rain") || userPrompt.includes("snow") || userPrompt.includes("do i need") || userPrompt.includes("is it going to")) {
+      contextString += "Weather: " + await this.getWeather();
+    }
+
+    if (userPrompt.includes("location") || userPrompt.includes("where") || userPrompt.includes("get to") || userPrompt.includes("at")) {
+      contextString += "Location: " + await this.getLocation();
+    }
+
+    console.log(contextString);
+
+    return contextString;
+  }
+
+  private async getLastLocation(): Promise<string> {
+    try {
+      const {status} = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Permission to access location was denied');
+        return '';
+      }
+
+      const lastLocation = await Location.getLastKnownPositionAsync({});
+      if (lastLocation) {
+        return `${lastLocation.coords.latitude},${lastLocation.coords.longitude}`;
+      }
+      return await this.getLocation();
+    } 
+    catch (error) {
+      console.error('Error getting last location:', error);
+      return '';
+    }
+
+  }
+
+  private async getLocation(): Promise<string> {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Permission to access location was denied');
+        return '';
+      }
+  
+      const location = await Location.getCurrentPositionAsync({});
+      return `${location.coords.latitude},${location.coords.longitude}`;
+    } catch (error) {
+      console.error('Error getting current location:', error);
+      return '';
+    }
+  }
+
+  private async getWeather(): Promise<string> {
+    const location = await this.getLastLocation();
+
+    if(!location) {
+      return ''
+    }
+    
+    const url = `http://api.weatherapi.com/v1/forecast.json?key=6323f6e1107c48e5957210846230705&q=${location}&days=3`;
+
+    const response = await fetch(url);
+
+    if(response.ok) {
+      let data = await response.json();
+      return JSON.stringify(data);
+    }
+    return "";
   }
 }
