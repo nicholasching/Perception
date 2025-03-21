@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 
 // Main View
 export default function App() {
@@ -454,10 +455,26 @@ export default function App() {
         const text = await geminiService.customRequest(base64, prompt);
         setGenText(text);
         console.log("Gemini Vision to Text Received");
+        
+        // Deleting captured photo
+        try {
+          await FileSystem.deleteAsync(imageUri, { idempotent: true });
+          console.log("Image file deleted successfully");
+        } catch (deleteError) {
+          console.error("Error deleting image file:", deleteError);
+        }
       } 
       catch (error) {
         console.error("Error generating response:", error);
         setGenText("Sorry, there was an error. Please try again.");
+        
+        // Deleting captured photo
+        try {
+          await FileSystem.deleteAsync(imageUri, { idempotent: true });
+          console.log("Image file deleted after error");
+        } catch (deleteError) {
+          console.error("Error deleting image file after processing error:", deleteError);
+        }
       }
     } 
     else {
