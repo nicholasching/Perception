@@ -177,6 +177,9 @@ export default function App() {
             ExpoSpeechRecognitionModule.stop();
             console.log("Stopping speech recognition due to processing start")
             resetPhoto();
+
+            // Save local value of final transcript to prevent aliasing issues
+            const localPrompt = finalTranscriptRef.current
             
             try {
               console.log("Taking picture...");
@@ -184,14 +187,17 @@ export default function App() {
               
               if (photoUri) {
                 console.log("URI captured, generating description...");
-                await generateResponse(photoUri, finalTranscriptRef.current);
-              } else {
+                await generateResponse(photoUri, localPrompt);
+              } 
+              else {
                 console.log("No URI after taking picture");
               }
-            } catch (error) {
+            } 
+            catch (error) {
               console.error('Error in photo cycle:', error);
-              resetCamera(); // Reset camera on error
-            } finally {
+              resetCamera();
+            } 
+            finally {
               isProcessing = false;
             }
           }
