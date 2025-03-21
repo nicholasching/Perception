@@ -79,6 +79,7 @@ export class GeminiService {
         }
         return true;
       }
+      alert('Please enter a valid API key in settings.');
       return false;
     } 
     catch (error) {
