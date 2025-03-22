@@ -214,7 +214,7 @@ export class GeminiService {
       return ''
     }
     
-    const url = `http://api.weatherapi.com/v1/forecast.json?key=6323f6e1107c48e5957210846230705&q=${location}&days=3`;
+    const url = `https://api.weatherapi.com/v1/forecast.json?key=6323f6e1107c48e5957210846230705&q=${location}&days=3`;
 
     const response = await fetch(url);
 
