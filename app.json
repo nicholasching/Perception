@@ -28,7 +28,8 @@
       "blockedPermissions": [
         "android.permission.ACTIVITY_RECOGNITION"
       ],
-      "package": "com.iSight"
+      "package": "com.iSight",
+      "versionCode": 2
     },
     "web": {
       "bundler": "metro",
