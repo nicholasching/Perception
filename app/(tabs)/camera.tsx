@@ -1,7 +1,7 @@
 // Importing necessary modules
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, StatusBar, Animated, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, StatusBar, Animated, TouchableOpacity, Dimensions } from 'react-native';
 import * as Speech from "expo-speech";
 import { GeminiService } from '../utils/gemini_util';
 import { DeviceMotion } from 'expo-sensors';
@@ -54,7 +54,8 @@ export default function App() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  
+  const { width } = Dimensions.get('window');
+
   // New animation for the angle indicator
   const angleIndicatorAnim = useRef(new Animated.Value(0)).current;
 
@@ -294,7 +295,7 @@ export default function App() {
     const normalizedValue = Math.min(Math.max(currentAngle / uprightAngleRef.current, 0), 1);
     Animated.timing(angleIndicatorAnim, {
       toValue: normalizedValue,
-      duration: 300,
+      duration: 150,
       useNativeDriver: false
     }).start();
     
@@ -376,15 +377,15 @@ export default function App() {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.2,
-          duration: 800,
+          toValue: 1,
+          duration: 250,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 800,
+          toValue: 3,
+          duration: 1500,
           useNativeDriver: true,
-        })
+        }),
       ])
     ).start();
   };
@@ -547,13 +548,6 @@ export default function App() {
     setGenText(null);
   }
 
-  // Function: Toggle camera between front and back
-  const toggleCameraFacing = () => {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    resetCamera();
-  };
-
   // Check for whether camera permissions are still loading
   if (!permission) {
     return (
@@ -604,31 +598,7 @@ export default function App() {
         
         {/* Status panel with blur effect */}
         <BlurView intensity={30} tint="dark" style={styles.statusContainer}>
-          <Animated.Text 
-            style={[
-              styles.recordingtext,
-              { 
-                opacity: fadeAnim,
-                transform: [{scale: scaleAnim}] 
-              }
-            ]}
-          >
-            {prevStatusText}
-          </Animated.Text>
-
-          {/* Activity indicator */}
-          {(isCurrentlyProcessing || isCurrentlySpeaking) && (
-            <Animated.View 
-              style={[
-                styles.activityIndicator,
-                { transform: [{ scale: pulseAnim }] }
-              ]}
-            />
-          )}
-        </BlurView>
-
-        {/* Mode indicator on top */}
-        <BlurView intensity={30} tint="dark" style={styles.modeContainer}>
+          {/* Mode indicator icon */}
           <Animated.View style={[
             styles.modeIndicator,
             {backgroundColor: isCurrentlySpeaking ? '#4CAF50' : (isCurrentlyProcessing ? '#FF9800' : '#FF5722')}
@@ -643,22 +613,36 @@ export default function App() {
               color="white" 
             />
           </Animated.View>
-          <Text style={styles.modeText}>
-            {isCurrentlySpeaking ? "Speaking" : 
-             (isCurrentlyProcessing ? "Processing" : 
-              (recognizing ? "Listening" : "Ready"))}
-          </Text>
-        </BlurView>
 
-        {/* Camera controls */}
-        <TouchableOpacity 
-          style={styles.cameraToggle}
-          onPress={toggleCameraFacing}
-        >
-          <BlurView intensity={60} tint="dark" style={styles.iconContainer}>
-            <Ionicons name="camera-reverse" size={24} color="#fff" />
-          </BlurView>
-        </TouchableOpacity>
+          <Animated.Text 
+            style={[
+              styles.recordingtext,
+              { 
+                opacity: fadeAnim,
+                transform: [{scale: scaleAnim}]
+              }
+            ]}
+          >
+            {prevStatusText}
+          </Animated.Text>
+
+          {/* Activity indicator */}
+          {(isCurrentlyProcessing || isCurrentlySpeaking) && (
+            <Animated.View 
+              style={[
+                styles.activityIndicator,
+                {
+                  transform: [{
+                    translateX: pulseAnim.interpolate({
+                      inputRange: [1, 3],
+                      outputRange: [0, width * 2.5]
+                    })
+                  }]
+                }
+              ]}
+            />
+          )}
+        </BlurView>
         
         <StatusBar backgroundColor = "#FF0000" barStyle="light-content"/>
       </View>
@@ -703,6 +687,7 @@ export default function App() {
         <View style={styles.tiltInstructions}>
           <Ionicons name="arrow-up" size={30} color="#00FF00" />
           <Text style={styles.tiltText}>Tilt Up To Activate</Text>
+          <Ionicons name="arrow-up" size={30} color="#00FF00" />
         </View>
       </View>
       
@@ -731,11 +716,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   recordingtext:{
-    textAlign: 'center',
     fontSize: 20,
     fontWeight: '600',
     color: '#ffffff',
     padding: 10,
+    marginLeft: 5,
   },
   inactiveContent: {
     alignItems: 'center',
@@ -803,18 +788,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  modeContainer: {
-    position: 'absolute',
-    top: 50,
-    alignSelf: 'center',
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
   },
   modeIndicator: {
     width: 36,
@@ -822,32 +796,14 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
-  },
-  modeText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
   },
   activityIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: '150%',
+    height: 8,
+    left: '-200%',
+    bottom: '-75%',
+    borderRadius: 4,
     backgroundColor: '#FF5722',
-    marginRight: 10,
-  },
-  cameraToggle: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 10,
-  },
-  iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   angleIndicatorContainer: {
     width: '90%',
@@ -895,5 +851,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 10,
+    marginRight: 10,
   },
 });
