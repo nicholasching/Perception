@@ -1,7 +1,7 @@
 // Importing necessary modules
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Button, StyleSheet, Text, View, StatusBar, Animated } from 'react-native';
+import { StyleSheet, Text, View, StatusBar, Animated, TouchableOpacity } from 'react-native';
 import * as Speech from "expo-speech";
 import { GeminiService } from '../utils/gemini_util';
 import { DeviceMotion } from 'expo-sensors';
@@ -10,6 +10,9 @@ import { useFocusEffect } from 'expo-router';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 
 // Main View
 export default function App() {
@@ -50,6 +53,10 @@ export default function App() {
   const [prevStatusText, setPrevStatusText] = useState("");
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  
+  // New animation for the angle indicator
+  const angleIndicatorAnim = useRef(new Animated.Value(0)).current;
 
   // Hook: Load settings when component mounts
   useEffect(() => {
@@ -281,6 +288,16 @@ export default function App() {
       ExpoSpeechRecognitionModule.stop();
       console.log("Stopping speech recognition due to phone angle");
     }
+    
+    // Animate angle indicator
+    const currentAngle = rotation.beta * (180/Math.PI);
+    const normalizedValue = Math.min(Math.max(currentAngle / uprightAngleRef.current, 0), 1);
+    Animated.timing(angleIndicatorAnim, {
+      toValue: normalizedValue,
+      duration: 300,
+      useNativeDriver: false
+    }).start();
+    
     rotationRef.current = rotation;
   }, [rotation]);
 
@@ -347,7 +364,30 @@ export default function App() {
         ]).start();
       });
     }
+
+    // Start pulse animation when processing or speaking
+    if (isCurrentlyProcessing || isCurrentlySpeaking) {
+      startPulseAnimation();
+    }
   }, [isCameraReady, recognizing, isCurrentlyProcessing, isCurrentlySpeaking, finalTranscript]);
+
+  // Function: Create a pulsing animation when program is active
+  const startPulseAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
+  };
 
   // Function: Load settings from storage
   const loadSettings = async () => {
@@ -507,9 +547,23 @@ export default function App() {
     setGenText(null);
   }
 
+  // Function: Toggle camera between front and back
+  const toggleCameraFacing = () => {
+    setFacing(current => (current === 'back' ? 'front' : 'back'));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    resetCamera();
+  };
+
   // Check for whether camera permissions are still loading
   if (!permission) {
-    return <View />;
+    return (
+      <View style={styles.loadingContainer}>
+        <Animated.View style={{transform: [{scale: pulseAnim}]}}>
+          <Ionicons name="camera" size={50} color="#ffd33d" />
+        </Animated.View>
+        <Text style={styles.loadingText}>Loading camera...</Text>
+      </View>
+    );
   }
 
   // Check for whether camera permissions are granted
@@ -517,8 +571,18 @@ export default function App() {
     // Camera permissions are not granted yet.
     return (
       <View style={styles.container}>
-        <Text style={styles.message}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="grant permission" />
+        <BlurView intensity={85} style={StyleSheet.absoluteFill} tint="dark" />
+        <View style={styles.permissionContainer}>
+          <Ionicons name="camera-outline" size={60} color="#ffd33d" />
+          <Text style={styles.permissionTitle}>Camera Access Needed</Text>
+          <Text style={styles.permissionMessage}>We need your permission to use the camera</Text>
+          <TouchableOpacity 
+            style={styles.permissionButton}
+            onPress={requestPermission}
+          >
+            <Text style={styles.permissionButtonText}>Grant Permission</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -536,9 +600,10 @@ export default function App() {
             console.log("Camera is ready");
             setIsCameraReady(true);
           }}
-        >
-        </CameraView>
-        <View style={styles.statusContainer}>
+        />
+        
+        {/* Status panel with blur effect */}
+        <BlurView intensity={30} tint="dark" style={styles.statusContainer}>
           <Animated.Text 
             style={[
               styles.recordingtext,
@@ -550,7 +615,51 @@ export default function App() {
           >
             {prevStatusText}
           </Animated.Text>
-        </View>
+
+          {/* Activity indicator */}
+          {(isCurrentlyProcessing || isCurrentlySpeaking) && (
+            <Animated.View 
+              style={[
+                styles.activityIndicator,
+                { transform: [{ scale: pulseAnim }] }
+              ]}
+            />
+          )}
+        </BlurView>
+
+        {/* Mode indicator on top */}
+        <BlurView intensity={30} tint="dark" style={styles.modeContainer}>
+          <Animated.View style={[
+            styles.modeIndicator,
+            {backgroundColor: isCurrentlySpeaking ? '#4CAF50' : (isCurrentlyProcessing ? '#FF9800' : '#FF5722')}
+          ]}>
+            <Ionicons 
+              name={
+                isCurrentlySpeaking ? "volume-high" : 
+                (isCurrentlyProcessing ? "hourglass" : 
+                 (recognizing ? "mic" : "camera"))
+              } 
+              size={24} 
+              color="white" 
+            />
+          </Animated.View>
+          <Text style={styles.modeText}>
+            {isCurrentlySpeaking ? "Speaking" : 
+             (isCurrentlyProcessing ? "Processing" : 
+              (recognizing ? "Listening" : "Ready"))}
+          </Text>
+        </BlurView>
+
+        {/* Camera controls */}
+        <TouchableOpacity 
+          style={styles.cameraToggle}
+          onPress={toggleCameraFacing}
+        >
+          <BlurView intensity={60} tint="dark" style={styles.iconContainer}>
+            <Ionicons name="camera-reverse" size={24} color="#fff" />
+          </BlurView>
+        </TouchableOpacity>
+        
         <StatusBar backgroundColor = "#FF0000" barStyle="light-content"/>
       </View>
     );
@@ -559,9 +668,44 @@ export default function App() {
   // Inactive View: Displayed when phone is not upright
   return (
     <View style={styles.background}>
-      <Text style={styles.inactivetext}>The camera is currently inactive.</Text>
-      <Text style={styles.inactivetext}>Tilt your phone above an angle of {uprightAngleRef.current}° to activate the camera.</Text>
-      <Text style={styles.inactivetext}>Current Angle: {(rotationRef.current.beta * (180/Math.PI)).toFixed(1)}°</Text>
+      <LinearGradient
+        colors={['#232020', '#323232']}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      <View style={styles.inactiveContent}>
+        <Ionicons name="phone-portrait" size={60} color="#00FF00" />
+        <Text style={styles.inactiveTitle}>Camera Inactive</Text>
+        <Text style={styles.inactivetext}>Tilt your phone above an angle of {uprightAngleRef.current}° to activate the camera.</Text>
+        
+        {/* Angle indicator */}
+        <View style={styles.angleIndicatorContainer}>
+          <Text style={styles.angleText}>Current: {(rotationRef.current.beta * (180/Math.PI)).toFixed(1)}°</Text>
+          <View style={styles.angleTrack}>
+            <Animated.View 
+              style={[
+                styles.angleProgress,
+                {
+                  width: angleIndicatorAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%']
+                  })
+                }
+              ]} 
+            />
+          </View>
+          <View style={styles.angleLabels}>
+            <Text style={styles.angleMinLabel}>0°</Text>
+            <Text style={styles.angleThresholdLabel}>{uprightAngleRef.current}°</Text>
+          </View>
+        </View>
+        
+        <View style={styles.tiltInstructions}>
+          <Ionicons name="arrow-up" size={30} color="#00FF00" />
+          <Text style={styles.tiltText}>Tilt Up To Activate</Text>
+        </View>
+      </View>
+      
       <StatusBar backgroundColor = "#00FF00" barStyle="light-content"/>
     </View>
   );
@@ -574,54 +718,182 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#232020',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#232020',
+  },
+  loadingText: {
+    color: '#ffd33d',
+    fontSize: 18,
+    marginTop: 20,
+    fontWeight: '500',
+  },
   recordingtext:{
     textAlign: 'center',
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FF0000',
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#ffffff',
     padding: 10,
+  },
+  inactiveContent: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  inactiveTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#00FF00',
+    marginBottom: 20,
+    marginTop: 10,
   },
   inactivetext:{
     textAlign: 'center',
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#00FF00',
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#ffffff',
     padding: 10,
+    lineHeight: 24,
   },
   container: {
     flex: 1,
     justifyContent: 'center',
+    backgroundColor: '#232020',
   },
-  message: {
+  permissionContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  permissionTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffd33d',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  permissionMessage: {
     textAlign: 'center',
-    paddingBottom: 10,
+    fontSize: 16,
+    color: '#ffffff',
+    marginBottom: 30,
+  },
+  permissionButton: {
+    backgroundColor: '#ffd33d',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+    elevation: 3,
+  },
+  permissionButtonText: {
+    color: '#232020',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   camera: {
     flex: 1,
   },
-  buttonContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: 'transparent',
-    margin: 64,
-  },
-  button: {
-    flex: 1,
-    alignSelf: 'flex-end',
-    alignItems: 'center',
-  },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-  },
   statusContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 5,
+    padding: 15,
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  modeContainer: {
+    position: 'absolute',
+    top: 50,
+    alignSelf: 'center',
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  modeIndicator: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  modeText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  activityIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FF5722',
+    marginRight: 10,
+  },
+  cameraToggle: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+  },
+  iconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  angleIndicatorContainer: {
+    width: '90%',
+    marginTop: 30,
+    marginBottom: 20,
+  },
+  angleText: {
+    color: 'white',
+    marginBottom: 10,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  angleTrack: {
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  angleProgress: {
+    height: '100%',
+    backgroundColor: '#00FF00',
+    borderRadius: 4,
+  },
+  angleLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 5,
+  },
+  angleMinLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+  },
+  angleThresholdLabel: {
+    color: '#00FF00',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  tiltInstructions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 30,
+  },
+  tiltText: {
+    color: '#00FF00',
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 10,
   },
 });
