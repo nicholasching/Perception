@@ -601,7 +601,7 @@ export default function App() {
           {/* Mode indicator icon */}
           <Animated.View style={[
             styles.modeIndicator,
-            {backgroundColor: isCurrentlySpeaking ? '#4CAF50' : (isCurrentlyProcessing ? '#FF9800' : '#FF5722')}
+            {backgroundColor: '#3B82F6'}
           ]}>
             <Ionicons 
               name={
@@ -644,7 +644,7 @@ export default function App() {
           )}
         </BlurView>
         
-        <StatusBar backgroundColor = "#FF0000" barStyle="light-content"/>
+        <StatusBar backgroundColor = "#151020" barStyle="light-content"/>
       </View>
     );
   }
