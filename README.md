@@ -5,9 +5,9 @@ An assistive mobile app created to empower visually impaired users; automaticall
 Perception is a mobile application designed to assist visually impaired individuals in navigating their surroundings through an intuitive interface, on-device prompt transcription, and AI-powered image recognition. The app captures images through the device's camera and converts visual information into detailed audio descriptions in real-time. The intuitive voice command interface allows users to interact with the application completely hands-free and address specific objects within their environment, making it truly accessible for those with visual impairments.
 
 ## Features
-**Core Feature - Real-Time Guidance**: Simply speak to the app directly as if it is a human and recieve near instant audio responses with spacial awareness.
+**Core Feature - Real-Time Guidance**: Simply speak to the app directly as if it is a human and recieve near instant audio responses with spatial awareness.
 
-**Spacial Awareness:**
+**Spatial Awareness:**
 - **Visual Awareness:** With every prompt, the application also captures and processes an image of your nearby surroundings.
 - **Locational Awareness:** The application can access the user's location to address location-related prompts. 
 - **Environmental Awareness:** The application can provides real-time weather information and forecasts to address weather-related prompts.
