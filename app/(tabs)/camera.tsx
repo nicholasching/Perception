@@ -653,45 +653,47 @@ export default function App() {
   return (
     <View style={styles.background}>
       <LinearGradient
-        colors={['#232020', '#323232']}
+        colors={['#151020', '#232030', '#282830']}
         style={StyleSheet.absoluteFill}
       />
       
       <View style={styles.inactiveContent}>
-        <Ionicons name="phone-portrait" size={60} color="#00FF00" />
-        <Text style={styles.inactiveTitle}>Camera Inactive</Text>
-        <Text style={styles.inactivetext}>Tilt your phone above an angle of {uprightAngleRef.current}° to activate the camera.</Text>
-        
-        {/* Angle indicator */}
-        <View style={styles.angleIndicatorContainer}>
-          <Text style={styles.angleText}>Current: {(rotationRef.current.beta * (180/Math.PI)).toFixed(1)}°</Text>
-          <View style={styles.angleTrack}>
-            <Animated.View 
-              style={[
-                styles.angleProgress,
-                {
-                  width: angleIndicatorAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0%', '100%']
-                  })
-                }
-              ]} 
-            />
+        <View style={styles.inactiveCard}>
+          <Ionicons name="phone-portrait-outline" size={60} color="#3B82F6" />
+          <Text style={styles.inactiveTitle}>Camera Inactive</Text>
+          <Text style={styles.inactiveText}>Tilt your phone above an angle of {uprightAngleRef.current}° to activate the camera.</Text>
+          
+          {/* Angle indicator */}
+          <View style={styles.angleIndicatorContainer}>
+            <Text style={styles.angleText}>Current: <Text style={styles.angleValue}>{(rotationRef.current.beta * (180/Math.PI)).toFixed(1)}°</Text></Text>
+            <View style={styles.angleTrack}>
+              <Animated.View 
+                style={[
+                  styles.angleProgress,
+                  {
+                    width: angleIndicatorAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%']
+                    })
+                  }
+                ]} 
+              />
+            </View>
+            <View style={styles.angleLabels}>
+              <Text style={styles.angleMinLabel}>0°</Text>
+              <Text style={styles.angleThresholdLabel}>{uprightAngleRef.current}°</Text>
+            </View>
           </View>
-          <View style={styles.angleLabels}>
-            <Text style={styles.angleMinLabel}>0°</Text>
-            <Text style={styles.angleThresholdLabel}>{uprightAngleRef.current}°</Text>
+          
+          <View style={styles.tiltInstructions}>
+            <Ionicons name="arrow-up" size={24} color="#3B82F6" />
+            <Text style={styles.tiltText}>Tilt Up To Activate</Text>
+            <Ionicons name="arrow-up" size={24} color="#3B82F6" />
           </View>
-        </View>
-        
-        <View style={styles.tiltInstructions}>
-          <Ionicons name="arrow-up" size={30} color="#00FF00" />
-          <Text style={styles.tiltText}>Tilt Up To Activate</Text>
-          <Ionicons name="arrow-up" size={30} color="#00FF00" />
         </View>
       </View>
       
-      <StatusBar backgroundColor = "#00FF00" barStyle="light-content"/>
+      <StatusBar backgroundColor="#151020" barStyle="light-content"/>
     </View>
   );
 }
@@ -707,10 +709,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#232020',
+    backgroundColor: '#151020',
   },
   loadingText: {
-    color: '#ffd33d',
+    color: '#3B82F6',
     fontSize: 18,
     marginTop: 20,
     fontWeight: '500',
@@ -723,28 +725,41 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   inactiveContent: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  inactiveCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: 20,
+    padding: 30,
+    width: '90%',
+    maxWidth: 380,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   inactiveTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#00FF00',
-    marginBottom: 20,
+    color: '#FFFFFF',
+    marginBottom: 15,
     marginTop: 10,
   },
-  inactivetext:{
+  inactiveText: {
     textAlign: 'center',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '500',
-    color: '#ffffff',
-    padding: 10,
+    color: 'rgba(255, 255, 255, 0.7)',
     lineHeight: 24,
+    marginBottom: 10,
   },
   container: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#232020',
+    backgroundColor: '#151020',
   },
   permissionContainer: {
     alignItems: 'center',
@@ -754,7 +769,7 @@ const styles = StyleSheet.create({
   permissionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffd33d',
+    color: '#3B82F6',
     marginTop: 20,
     marginBottom: 12,
   },
@@ -765,14 +780,14 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   permissionButton: {
-    backgroundColor: '#ffd33d',
+    backgroundColor: '#3B82F6',
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderRadius: 25,
     elevation: 3,
   },
   permissionButtonText: {
-    color: '#232020',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -803,28 +818,32 @@ const styles = StyleSheet.create({
     left: '-200%',
     bottom: '-75%',
     borderRadius: 4,
-    backgroundColor: '#FF5722',
+    backgroundColor: 'rgba(59, 130, 246, 0.7)',
   },
   angleIndicatorContainer: {
-    width: '90%',
-    marginTop: 30,
+    width: '100%',
+    marginTop: 25,
     marginBottom: 20,
   },
   angleText: {
-    color: 'white',
+    color: 'rgba(255, 255, 255, 0.7)',
     marginBottom: 10,
     fontSize: 16,
     textAlign: 'center',
   },
+  angleValue: {
+    color: '#3B82F6',
+    fontWeight: 'bold',
+  },
   angleTrack: {
     height: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 4,
     overflow: 'hidden',
   },
   angleProgress: {
     height: '100%',
-    backgroundColor: '#00FF00',
+    backgroundColor: '#3B82F6',
     borderRadius: 4,
   },
   angleLabels: {
@@ -833,22 +852,28 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   angleMinLabel: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 12,
   },
   angleThresholdLabel: {
-    color: '#00FF00',
+    color: '#3B82F6',
     fontSize: 14,
     fontWeight: 'bold',
   },
   tiltInstructions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 30,
+    marginTop: 20,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
   },
   tiltText: {
-    color: '#00FF00',
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
     marginLeft: 10,
     marginRight: 10,
