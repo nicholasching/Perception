@@ -1,16 +1,16 @@
-import { Text, View, TouchableOpacity, StyleSheet, StatusBar } from "react-native";
+import { Text, View, TouchableOpacity, StyleSheet, StatusBar, Animated } from "react-native";
 import { Link } from "expo-router";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { AntDesign } from '@expo/vector-icons';
 
 export default function Index() {
   
-  // State variables (store current setting values)
+  // Page variables
   const [username, setUsername] = useState('');
-
-  // Use the saved username if available, otherwise use a default greeting
   const displayName = username ? username : "User";
   
   // Hook: Load settings when component mounts
@@ -18,6 +18,21 @@ export default function Index() {
     loadUsername();
   }, []);
   
+  // Hook: Set status bar when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      StatusBar.setBackgroundColor("#151020");
+      StatusBar.setBarStyle("light-content");
+      
+      // Refresh username when screen comes into focus
+      loadUsername();
+      
+      return () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      };
+    }, [])
+  );
+
   // Function: Returns the username from storage
   const loadUsername = async () => {
     try {
@@ -33,92 +48,114 @@ export default function Index() {
     }
   };
   
-  // Hook: Set status bar to blue when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      StatusBar.setBackgroundColor("#0000FF");
-      StatusBar.setBarStyle("light-content");
-      
-      // Refresh username when screen comes into focus
-      loadUsername();
-      
-      return () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      };
-    }, [])
-  );
-  
   // Time dependent greeting
   let greeting;
+  let emoji = "👋";
 
   const now = new Date();
   const hours = now.getHours();
   
   if (hours < 12) {
     greeting = "Good Morning";
+    emoji = "☀️";
   } 
   else if (hours < 18) {
     greeting = "Good Afternoon";
+    emoji = "🌤️";
   } 
   else {
     greeting = "Good Evening";
+    emoji = "🌙";
   }
-
 
   // View: Welcome screen
   return (
-    <View
-      style={{
-        backgroundColor: "#232020",
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
+    <LinearGradient
+      colors={['#151020', '#232030', '#282830']}
+      style={styles.container}
     >
-      <Text style={styles.headingOne}>{greeting}, {displayName}!</Text>                       
-      <Text style={styles.headingTwo}>Welcome to iSight.</Text>
-      
-      <Link href="/camera" asChild>
-        <TouchableOpacity 
-          style={styles.button}
-        >
-          <Text style={styles.buttonText}>Start Guide</Text>
+      <View style={styles.card}>
+        <Text style={styles.emoji}>{emoji}</Text>
+        <Text style={styles.headingOne}>{greeting}, {displayName}!</Text>                       
+        <Text style={styles.headingTwo}>Welcome to Perception</Text>
+        <Text style={styles.subtitle}>Your vision assistant</Text>
+        <TouchableOpacity style={styles.button}>
+          <Link href="/camera" style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.buttonText}>Start Guide</Text>
+            <AntDesign name="arrowright" size={18} color="#232020" style={styles.buttonIcon} />
+          </Link>
         </TouchableOpacity>
-      </Link>
-      <StatusBar backgroundColor = "#0000FF" barStyle="light-content"/>
-    </View>
+      </View>
+      <StatusBar backgroundColor="#151020" barStyle="light-content"/>
+    </LinearGradient>
   );
 }
 
 // CSS Styling
 const styles = StyleSheet.create({
-  headingOne:{
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  card: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
+    padding: 30,
+    width: '90%',
+    maxWidth: 380,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  emoji: {
+    fontSize: 48,
+    marginBottom: 15,
+  },
+  headingOne: {
     color: "white",
     fontSize: 30,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   headingTwo: {
     color: "white",
     fontSize: 25,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 16,
+    marginBottom: 25,
+    textAlign: 'center',
   },
   buttonText: {
     color: "#232020",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
+    marginRight: 8,
   },
   button: {
     backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
-    elevation: 3,
+    paddingVertical: 15,
+    paddingHorizontal: 28,
+    borderRadius: 50,
+    marginTop: 15,
+    elevation: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowRadius: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonIcon: {
+    marginLeft: 5,
   },
 });
