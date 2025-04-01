@@ -732,7 +732,6 @@ const styles = StyleSheet.create({
   },
   inactiveCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    backdropFilter: 'blur(10px)',
     borderRadius: 20,
     padding: 30,
     width: '90%',
