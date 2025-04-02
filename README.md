@@ -11,9 +11,9 @@
 https://github.com/user-attachments/assets/735798b0-828e-4de9-a68d-50f742425a52
 
 <p align="center">
+<img src="docs/home.png" alt="Home Page" width="400" />
 <img src="docs/inactive.png" alt="Home Page" width="400" />
 <img src="docs/recording.png" alt="Home Page" width="400" />
-<img src="docs/home.png" alt="Home Page" width="400" />
 <img src="docs/settings.png" alt="Home Page" width="400" />
 </p>
 
