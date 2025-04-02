@@ -1,5 +1,19 @@
-# Perception
-An assistive mobile app created to empower visually impaired users; automatically converts camera images into spoken descriptions with intutive voice command activation and prompting.
+<div align="center">
+    <img alt="Logo" src="assets/images/icon.png" width="100" />
+</div>
+<h1 align="center">
+    Perception
+</h1>
+<p align="center">
+   An assistive mobile app created to empower visually impaired users; automatically converts camera images into spoken descriptions with intutive voice command activation and prompting.
+</p>
+
+<p align="center">
+<img src="docs/inactive.png" alt="Home Page" width="400" />
+<img src="docs/recording.png" alt="Home Page" width="400" />
+<img src="docs/home.png" alt="Home Page" width="400" />
+<img src="docs/settings.png" alt="Home Page" width="400" />
+</p>
 
 ## Overview
 Perception is a mobile application designed to assist visually impaired individuals in navigating their surroundings through an intuitive interface, on-device prompt transcription, and AI-powered image recognition. The app captures images through the device's camera and converts visual information into detailed audio descriptions in real-time. The intuitive voice command interface allows users to interact with the application completely hands-free and address specific objects within their environment, making it truly accessible for those with visual impairments.
