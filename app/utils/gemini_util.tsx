@@ -43,7 +43,13 @@ export class GeminiService {
     }
     else {
       this.gemini = new GoogleGenerativeAI(this.apiKey);
-      this.model = this.gemini.getGenerativeModel({ model: this.modelType, temperature: 1, topP: 0.8, topK: 40  });
+      this.model = this.gemini.getGenerativeModel({ 
+        model: this.modelType, 
+        temperature: 1, 
+        topP: 0.8, 
+        topK: 40,
+        tools: [{"googleSearch": {}}],
+      });
       
       // Testing and warming up the model
       let result = await this.model.generateContent(["Good morning! How are you doing?"]);
