@@ -12,7 +12,7 @@ export default function SettingsScreen() {
   const [username, setUsername] = useState('');
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiModel, setGeminiModel] = useState('gemini-2.0-flash');
-  const [compressionQuality, setCompressionQuality] = useState(80); // Default compression quality
+  const [compressionQuality, setCompressionQuality] = useState(80);
   const [activationAngle, setActivationAngle] = useState(45);
   const [audioTimeout, setAudioTimeout] = useState(2.0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -24,7 +24,7 @@ export default function SettingsScreen() {
   // Array of tick marks for sliders
   const audioTimeoutTicks = Array.from({ length: 10 }, (_, i) => (i + 1) * 0.5);
   const angleTicks = Array.from({ length: 10 }, (_, i) => i * 10);
-  const qualityTicks = Array.from({ length: 7 }, (_, i) => 40 + i * 10); // From 40 to 100 in steps of 10
+  const qualityTicks = Array.from({ length: 7 }, (_, i) => 40 + i * 10);
 
   // Array of Gemini model options
   const modelOptions = [
@@ -266,6 +266,16 @@ export default function SettingsScreen() {
               ))}
             </View>
           )}
+
+          <Animated.View style={[{ transform: [{ scale: buttonScale }] }, styles.buttonContainer]}>
+            <TouchableOpacity 
+              style={styles.saveButton} 
+              onPress={() => Linking.openURL('https://scribehow.com/shared/Create_and_Copy_Google_API_Key__tCLcrHRDSTyneNx8QwXoWA')}
+            >
+              <AntDesign name="link" size={20} color="white" style={styles.buttonIcon} />
+              <Text style={styles.buttonText}>Get an API Key</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
         
         <View style={styles.card}>
