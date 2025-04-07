@@ -8,7 +8,7 @@
    An assistive mobile app created to empower visually impaired users; automatically converts camera images into spoken descriptions with intutive voice command activation and prompting.
 </p>
 
-https://github.com/user-attachments/assets/735798b0-828e-4de9-a68d-50f742425a52
+https://github.com/user-attachments/assets/c9875c8e-e21d-40ca-94bf-4ee141c03c2e
 
 <p align="center">
 <img src="docs/home.png" alt="Home Page" width="400" />
