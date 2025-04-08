@@ -2,7 +2,7 @@
   "expo": {
     "name": "Perception",
     "slug": "Perception",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -29,7 +29,7 @@
         "android.permission.ACTIVITY_RECOGNITION"
       ],
       "package": "com.iSight",
-      "versionCode": 2
+      "versionCode": 6
     },
     "web": {
       "bundler": "metro",
